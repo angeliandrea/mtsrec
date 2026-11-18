@@ -270,6 +270,8 @@ def main():
     ap.add_argument("--wix", required=True, type=Path)
     ap.add_argument("--uscita", required=True, type=Path, help="keep it outside the source tree")
     a = ap.parse_args()
+    # candle and light run from the work folder: relative paths would point to the wrong place (first GitHub build)
+    a.build, a.wix, a.uscita = a.build.resolve(), a.wix.resolve(), a.uscita.resolve()
 
     testo, numeri, nome_file = versione()
     rinfresca(a.build)
