@@ -72,8 +72,9 @@ class Pulitore:
             s = re.sub(re.escape(v), segno, s, flags=re.I)
         s = re.sub(r"\b\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?\b", "<IP>", s)
         s = re.sub(r"\b[0-9a-f]{2}(?:[:-][0-9a-f]{2}){5}\b", "<MAC>", s, flags=re.I)
-        s = re.sub(r"[A-Za-z]:\\[^\s\"';|]*", "<path>", s)
-        s = re.sub(r"\\\\[^\s\"';|]+", "<path>", s)
+        # un percorso va fino all'ultima barra della riga anche attraverso gli spazi, poi fino al primo spazio
+        s = re.sub(r"[A-Za-z]:\\(?:[^\\\r\n\"';|]*\\)*[^\s\"';|]*", "<path>", s)
+        s = re.sub(r"\\\\(?:[^\\\r\n\"';|]*\\)*[^\s\"';|]+", "<path>", s)
         return s
 
 
@@ -355,6 +356,10 @@ def registrazioni(ultima):
 def parte_registrazione(n, cartella, p):
     r = leggi_json(cartella / "registrazione.json") or {}
     fps = Cadenza.da_registrazione(cartella)          # dal 18 novembre 2026 anche 29,97 e 59,94 (sezione 9.79)
+    # prima il percorso intero e la cartella di destinazione: coi soli nomi un percorso con gli spazi restava
+    # scoperto a metà nei registri, «<path> ISO - prove\...\recording 1» (trovato il 18 novembre 2026)
+    p.aggiungi(str(cartella), f"<recording {n} folder>")
+    p.aggiungi(str(cartella.parent), "<destination>")
     p.aggiungi(cartella.name, f"recording {n}")
     tracce = r.get("tracce", [])
     # i nomi dei file possono essere nomi di sorgenti o di persone: nel rapporto resta la porta
