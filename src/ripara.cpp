@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <map>
+#include <thread>
 #include <vector>
 
 extern "C" {
@@ -296,50 +297,80 @@ int ripara_cartella(const std::string& cartella, const Cadenza& cad) {
     return fallito ? -1 : riparati;
 }
 
-int ripara_interrotte(const std::string& destinazione) {
+// Una cartella interrotta: 1 riparata, 0 lasciata (niente MOV, cadenza illeggibile, riparazione fallita),
+// -1 se un MOV è stato scritto negli ultimi 30 secondi. Il messaggio «ancora in scrittura» lo dà il chiamante.
+static int ripara_una(const fs::path& d) {
+    std::error_code ec;
+    if (!fs::exists(d / FILE_IN_CORSO, ec) && !fs::exists(d / FILE_IN_CORSO_VECCHIO, ec)) return 0;
+    fs::path primo;
+    bool recente = false;
+    const auto ora = fs::file_time_type::clock::now();
+    for (const auto& e : fs::directory_iterator(d, ec)) {
+        if (!e.is_regular_file(ec) || e.path().extension() != ".mov") continue;
+        if (primo.empty() || e.path() < primo) primo = e.path();
+        if (ora - fs::last_write_time(e.path(), ec) < std::chrono::seconds(30)) recente = true;
+    }
+    if (recente) return -1;
+    if (primo.empty()) return 0;
+    const std::string nome = u8(d.filename());
+    Cadenza cad;
+    AVFormatContext* f = nullptr;
+    bool letta = false;
+    if (avformat_open_input(&f, u8(primo).c_str(), nullptr, nullptr) >= 0) {
+        if (avformat_find_stream_info(f, nullptr) >= 0) {
+            const int v = av_find_best_stream(f, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+            if (v >= 0) {
+                const AVRational r = f->streams[v]->r_frame_rate;
+                if (r.num > 0 && r.den > 0) {
+                    cad.num = r.num;
+                    cad.den = r.den;
+                    cad.base = static_cast<int>((r.num + r.den - 1) / r.den);   // 30000/1001 → 30
+                    letta = true;
+                }
+            }
+        }
+        avformat_close_input(&f);
+    }
+    if (!letta) { std::printf("interrupted recording \"%s\": frame rate unreadable, left as it is\n", nome.c_str()); return 0; }
+    std::printf("interrupted recording \"%s\": repairing it\n", nome.c_str());
+    const int n = ripara_cartella(u8(d), cad);
+    std::printf(n < 0 ? "⚠ \"%s\": repair failed, the originals are in the \"interrotti\" folder\n"
+                      : "\"%s\": tracks repaired: %d, originals in the \"interrotti\" folder\n", nome.c_str(), n);
+    return n >= 0 ? 1 : 0;
+}
+
+int ripara_interrotte(const std::string& destinazione, const std::atomic<bool>* esci) {
     std::error_code ec;
     const fs::path dest = fs::u8path(destinazione);
     if (destinazione.empty() || !fs::is_directory(dest, ec)) return 0;
     int fatte = 0;
+    std::vector<fs::path> attese;
     for (const auto& d : fs::directory_iterator(dest, ec)) {
         if (!d.is_directory(ec)) continue;
-        if (!fs::exists(d.path() / FILE_IN_CORSO, ec) && !fs::exists(d.path() / FILE_IN_CORSO_VECCHIO, ec)) continue;
-        // la cadenza dal primo MOV, e nessun MOV toccato da poco
-        fs::path primo;
-        bool recente = false;
-        const auto ora = fs::file_time_type::clock::now();
-        for (const auto& e : fs::directory_iterator(d.path(), ec)) {
-            if (!e.is_regular_file(ec) || e.path().extension() != ".mov") continue;
-            if (primo.empty() || e.path() < primo) primo = e.path();
-            if (ora - fs::last_write_time(e.path(), ec) < std::chrono::seconds(30)) recente = true;
+        const int r = ripara_una(d.path());
+        if (r > 0) ++fatte;
+        if (r < 0) {
+            std::printf("interrupted recording \"%s\": written less than 30 s ago, repair in a moment\n", u8(d.path().filename()).c_str());
+            attese.push_back(d.path());
         }
-        const std::string nome = u8(d.path().filename());
-        if (recente) { std::printf("interrupted recording \"%s\": still being written, left as it is\n", nome.c_str()); continue; }
-        if (primo.empty()) continue;
-        Cadenza cad;
-        AVFormatContext* f = nullptr;
-        bool letta = false;
-        if (avformat_open_input(&f, u8(primo).c_str(), nullptr, nullptr) >= 0) {
-            if (avformat_find_stream_info(f, nullptr) >= 0) {
-                const int v = av_find_best_stream(f, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
-                if (v >= 0) {
-                    const AVRational r = f->streams[v]->r_frame_rate;
-                    if (r.num > 0 && r.den > 0) {
-                        cad.num = r.num;
-                        cad.den = r.den;
-                        cad.base = static_cast<int>((r.num + r.den - 1) / r.den);   // 30000/1001 → 30
-                        letta = true;
-                    }
-                }
-            }
-            avformat_close_input(&f);
-        }
-        if (!letta) { std::printf("interrupted recording \"%s\": frame rate unreadable, left as it is\n", nome.c_str()); continue; }
-        std::printf("interrupted recording \"%s\": repairing it\n", nome.c_str());
-        const int n = ripara_cartella(u8(d.path()), cad);
-        std::printf(n < 0 ? "⚠ \"%s\": repair failed, the originals are in the \"interrotti\" folder\n"
-                          : "\"%s\": tracks repaired: %d, originals in the \"interrotti\" folder\n", nome.c_str(), n);
-        if (n >= 0) ++fatte;
     }
+    // Riaperto subito dopo la caduta: i MOV sono «recenti» solo perché la caduta è di pochi secondi fa.
+    // Si riprova ogni 5 secondi per al più 90, e si smette appena si chiude il registratore.
+    const auto inizio = std::chrono::steady_clock::now();
+    while (!attese.empty() && std::chrono::steady_clock::now() - inizio < std::chrono::seconds(90)) {
+        for (int i = 0; i < 20; ++i) {
+            if (esci && esci->load()) return fatte;
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+        std::vector<fs::path> ancora;
+        for (const auto& d : attese) {
+            const int r = ripara_una(d);
+            if (r > 0) ++fatte;
+            if (r < 0) ancora.push_back(d);
+        }
+        attese.swap(ancora);
+    }
+    for (const auto& d : attese)
+        std::printf("interrupted recording \"%s\": still being written, left as it is\n", u8(d.filename()).c_str());
     return fatte;
 }

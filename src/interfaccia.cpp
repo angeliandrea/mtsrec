@@ -1107,8 +1107,8 @@ int interfaccia(bool controllo, Apertura apertura) {
     }
     // Le registrazioni rimaste a metà nella destinazione si riparano da sole, in un filo suo (vedi ripara.h).
     // Solo qui, dopo la porta: un secondo registratore aperto per sbaglio esce sopra senza toccare niente.
-    a->filo_ripara = std::thread([d = a->imp.cartella] {
-        const int n = ripara_interrotte(d);
+    a->filo_ripara = std::thread([d = a->imp.cartella, p = a.get()] {
+        const int n = ripara_interrotte(d, &p->esci);
         if (n > 0) std::printf("interrupted recordings repaired at start: %d\n", n);
     });
     const std::string url = "http://localhost:" + std::to_string(a->imp.porta) + "/";
