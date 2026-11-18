@@ -34,10 +34,13 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
           $d = $env:MTSREC_DEPS
           New-Item -ItemType Directory -Force $d | Out-Null
           function Get-Verified($url, $file, $sha) {
-            Invoke-WebRequest -Uri $url -OutFile $file
+            # curl and not Invoke-WebRequest: on the first run the four downloads were still going after 9 minutes
+            curl.exe -fsSL --retry 3 --connect-timeout 30 --max-time 600 -o $file $url
+            if ($LASTEXITCODE) { throw "$url : curl exit $LASTEXITCODE" }
             $h = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
             if ($h -ne $sha) { throw "$file : SHA-256 $h, expected $sha" }
             Write-Host "$file verified"
