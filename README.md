@@ -46,7 +46,7 @@ The user manual is installed with the program (Help button or F1) and is also in
 
 The program sends nothing over the internet by itself. On the local network it talks only to the ATEM
 and HyperDeck addresses you enter. A test report is created only when you ask for it: you see what is
-inside, and you decide whether to email it. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+inside, it is saved on your Desktop, and you decide whether and how to send it. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
 ## Code signing policy
 

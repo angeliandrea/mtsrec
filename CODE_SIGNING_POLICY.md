@@ -24,6 +24,7 @@ by the user or the person installing or operating it.
 
 In detail: on the local network the recorder talks only to the ATEM switcher and HyperDeck addresses the
 user enters, and serves its own page on the same computer. It never connects to the internet by itself.
-The test report is created only when the user presses *Test report…*; the user sees its content and
-decides whether to send it by email. It contains no video, no IP addresses, no computer or user names and
+The test report is created only when the user presses *Test report…*; the user sees its content, it is
+saved on the user's Desktop, and the user decides whether to send it, by email or by uploading it to the
+developer's Filemail page, which the program opens in the web browser only when the user presses *Open upload page*. It contains no video, no IP addresses, no computer or user names and
 no file paths.

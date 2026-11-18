@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <shellapi.h>
+#include <shlobj.h>
 
 #include "interfaccia.h"
 #include "registro.h"
@@ -196,7 +197,7 @@ static void guarda_progetto(App& a) {
 }
 
 // Per i parametri di un indirizzo mailto: tutto quello che non è lettera o cifra in %XX, gli a capo come %0D%0A.
-static std::string url_codifica(const std::string& s) {
+[[maybe_unused]] static std::string url_codifica(const std::string& s) {
     static const char* H = "0123456789ABCDEF";
     std::string r;
     for (unsigned char c : s) {
@@ -996,8 +997,15 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
         corpo = "{\"versione\":" + json_testo(WINISO_VERSIONE) + ",\"accettata\":" + json_si(v == WINISO_VERSIONE) + "}";
         return true;
     }
-    // Il rapporto di prova per i beta tester (sezioni 9.68 e 9.73): l'anteprima mostra il testo, «crea» scrive
-    // lo zip, apre la cartella col file selezionato e prepara la mail. Il programma non manda niente da solo.
+    // Il rapporto di prova per i beta tester (sezioni 9.68, 9.73 e 9.84): l'anteprima mostra il testo, «crea» scrive
+    // lo zip sul Desktop e apre la cartella col file selezionato. Dalla 0.9 beta 8 non apre più la mail: il tester
+    // lo manda come vuole, per mail o dalla pagina Filemail, che si apre solo col tasto («/rapporto/portale»).
+    // Il programma non manda niente da solo.
+    if (percorso == "/rapporto/portale") {
+        ShellExecuteA(nullptr, "open", WINISO_PORTALE_RAPPORTI, nullptr, nullptr, SW_SHOWNORMAL);
+        corpo = "{\"ok\":true}";
+        return true;
+    }
     if (percorso == "/rapporto/anteprima" || percorso == "/rapporto/crea") {
         const std::string nota = parametro_query(query, "nota");
         const std::wstring fn = cartella_utente() + L"\\nota rapporto.txt";
@@ -1012,7 +1020,12 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
         if (ultima.find('"') != std::string::npos) ultima.clear();
         std::string arg = "--versione \"" + std::string(WINISO_VERSIONE) + "\"";
         if (!ultima.empty()) arg += " --registrazione \"" + ultima + "\"";
-        const std::string uscita = testo_di(fs::path(cartella_utente()) / "test reports");
+        // Il Desktop vero dell'utente, anche se spostato in OneDrive; se Windows non lo dà, la cartella di prima.
+        std::string uscita = testo_di(fs::path(cartella_utente()) / "test reports");
+        PWSTR desktop = nullptr;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, nullptr, &desktop)) && desktop) uscita = testo_di(fs::path(desktop));
+        CoTaskMemFree(desktop);
+        if (uscita.find('"') != std::string::npos) uscita = testo_di(fs::path(cartella_utente()) / "test reports");
         if (percorso == "/rapporto/crea") arg += " --uscita \"" + uscita + "\"";
         std::string e;
         const std::string r = Python::esegui("rapporto_prova.py", arg, 180000, e);
@@ -1029,15 +1042,8 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
                 ShellExecuteW(nullptr, L"open", L"explorer.exe", sel.c_str(), nullptr, SW_SHOWNORMAL);
             }
             const std::string oggetto = "Multicam Timecode Sync Recorder test report " + std::string(WINISO_VERSIONE);
-            const std::string testo =
-                "Hi Andrea,\n\nattached is my Multicam Timecode Sync Recorder test report: " + nome +
-                "\n(it is in the folder that has just opened).\n\n"
-                "Switcher model:\nDeckLink cards:\nWhat I tested:\nWhat went wrong, if anything:\n\n";
-            const std::string mailto = "mailto:" + std::string(WINISO_EMAIL_RAPPORTI) + "?subject=" + url_codifica(oggetto) +
-                                       "&body=" + url_codifica(testo);
-            const auto h = reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", mailto.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
-            corpo.insert(corpo.size() - 1, ",\"posta\":" + std::string(json_si(h > 32)) +
-                                           ",\"indirizzo\":" + json_testo(WINISO_EMAIL_RAPPORTI) + ",\"oggetto\":" + json_testo(oggetto));
+            corpo.insert(corpo.size() - 1, ",\"indirizzo\":" + json_testo(WINISO_EMAIL_RAPPORTI) +
+                                           ",\"portale\":" + json_testo(WINISO_PORTALE_RAPPORTI) + ",\"oggetto\":" + json_testo(oggetto));
         }
         return true;
     }

@@ -5,7 +5,7 @@
 <title>Multicam Timecode Sync Recorder User Manual</title>
 <style>
 @page { size: A4; margin: 18mm 17mm 20mm 17mm;
-  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 05"; font: 8pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 06"; font: 8pt "Segoe UI", sans-serif; color: #888; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", sans-serif; color: #888; } }
 @page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
 * { box-sizing: border-box; }
@@ -377,7 +377,8 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
 <ul>
   <li>You see everything that is inside before anything is created.</li>
   <li>Write a few notes: switcher model, cards, cabling, what you tested, what went wrong.</li>
-  <li><span class="ui">Create report and email it</span> saves a small zip, about 10 KB, opens its folder and prepares an email to the developer. Attach the zip and send. If no mail program opens, send it from your webmail with the subject shown on screen.</li>
+  <li><span class="ui">Save report to Desktop</span> saves a small zip, about 15 KB, on your Desktop and opens the folder with the file selected.</li>
+  <li>Send it the way you prefer: <span class="ui">Open upload page</span> opens the developer's Filemail page in your web browser, where you drop the zip and press Send; or attach it to an email to the address shown on screen, with the subject shown there.</li>
 </ul>
 <p>The report contains the system check, the settings, the input map, the versions of Desktop Video, Resolve and WebView2, the last five recordings (frames written and dropped per track, timecode, processor load, cuts, markers and the Resolve project) and the last lines of the session logs, with every warning and error. It contains no video, no IP addresses, no computer or user names, no file paths, no recording or source names. A random ID, chosen once per machine, tells the reports apart. The program never sends anything by itself.</p>
 
@@ -416,7 +417,7 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
 <table>
   <tr><th>Folder</th><th>Content</th></tr>
   <tr><td><code>%LOCALAPPDATA%\Programs\mtsrec</code></td><td class="a">The program, this manual, the licenses, the scripts and the Python that runs them.</td></tr>
-  <tr><td><code>%USERPROFILE%\mtsrec</code></td><td class="a">Settings, saved setups in <code>setup</code>, the input map <code>porte.json</code>, the result of the system check, the test reports in <code>test reports</code>, the session logs in <code>logs</code> (the last ten). Kept when the program is removed.</td></tr>
+  <tr><td><code>%USERPROFILE%\mtsrec</code></td><td class="a">Settings, saved setups in <code>setup</code>, the input map <code>porte.json</code>, the result of the system check, the test reports of beta 7 and earlier in <code>test reports</code> (from beta 8 they go to the Desktop), the session logs in <code>logs</code> (the last ten). Kept when the program is removed.</td></tr>
 </table>
 <h2 id="licenze">15.3 Licenses</h2>
 <p>Multicam Timecode Sync Recorder is free and open source under the MIT License. The source code is at <code>github.com/angeliandrea/mtsrec</code>, and the installer you download is built from it by GitHub. It uses FFmpeg under the LGPL, built into the program (the repository explains how to rebuild it), Python, the Microsoft WebView2 SDK and the interface definitions of the Blackmagic DeckLink SDK, each under its own license. The full texts are in the <code>licenses</code> folder of the program and in the Start menu.</p>

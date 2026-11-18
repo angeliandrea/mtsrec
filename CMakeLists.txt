@@ -39,6 +39,9 @@ set(WINISO_VERSIONE_NUMERI "${WINISO_V1}.${WINISO_V2}.${WINISO_V3}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/versione.h.in" "${CMAKE_CURRENT_BINARY_DIR}/versione.h" @ONLY)
 # Dove i beta tester mandano il rapporto di prova (Andrea, 17 novembre 2026): è già pubblico sulla pagina.
 set(WINISO_EMAIL_RAPPORTI "info@angeliandrea.it")
+# Dalla 0.9 beta 8 il rapporto si salva sul Desktop e lo manda il tester come vuole: per mail o dalla pagina
+# Filemail di Andrea, che si apre solo premendo il tasto (Andrea, 18 novembre 2026).
+set(WINISO_PORTALE_RAPPORTI "https://andrea-angeli.filemail.com/")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Libreria di Visual C++ dentro il programma: su un'altra macchina non serve installare niente.
 # Le DLL di ffmpeg sono compilate con gcc e non la usano.
@@ -186,6 +189,7 @@ if(EXISTS "${WINISO_WEBVIEW2_DIR}/../../LICENSE.txt")
     add_custom_command(TARGET mtsrec POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${WINISO_WEBVIEW2_DIR}/../../LICENSE.txt" "$<TARGET_FILE_DIR:mtsrec>/licenses/WebView2 LICENSE.txt")
 endif()
-target_compile_definitions(mtsrec PRIVATE WINISO_VERSIONE="${WINISO_VERSIONE}" WINISO_EMAIL_RAPPORTI="${WINISO_EMAIL_RAPPORTI}")
+target_compile_definitions(mtsrec PRIVATE WINISO_VERSIONE="${WINISO_VERSIONE}" WINISO_EMAIL_RAPPORTI="${WINISO_EMAIL_RAPPORTI}"
+    WINISO_PORTALE_RAPPORTI="${WINISO_PORTALE_RAPPORTI}")
 target_compile_definitions(mtsrec PRIVATE WINISO_SCRIPT_DIR="${WINISO_SCRIPT_SORGENTE}"
     WINISO_PAGINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/interfaccia")

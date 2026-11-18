@@ -422,7 +422,7 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
     <button class="piccolo" id="setup-cancella" title="Delete this setup">Delete</button></div>
   <div class="gruppo"><button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project">HyperDeck clips…</button></div>
   <div class="gruppo"><button class="piccolo" id="aiuto" title="Opens the user manual (PDF). F1 does the same">Help</button></div>
-  <div class="gruppo"><button class="piccolo" id="rp-apri" title="Creates the beta test report: you see what is inside, then it goes by email to the developer">Test report…</button></div>
+  <div class="gruppo"><button class="piccolo" id="rp-apri" title="Creates the beta test report on your Desktop: you see what is inside, then you send it to the developer">Test report…</button></div>
   <span class="separa"></span>
   <div class="gruppo"><span>Height</span><div class="segmentato" id="altezza"><button data-v="s">S</button><button data-v="m" class="si">M</button><button data-v="l">L</button></div></div>
   <div class="gruppo"><span>View</span><div class="segmentato" id="vista"><button data-v="autonomia" class="si">Full time left</button><button data-v="registrato">Recorded</button><button data-v="dieci">Last 10 min</button></div></div>
@@ -520,7 +520,7 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
       <p id="rp-fatto" style="margin:8px 0 0"></p>
       <p class="sel-errore" id="rp-errore"></p>
     </div>
-    <div class="sel-piede"><button class="piccolo" id="rp-chiudi">Close</button><button class="piccolo" id="rp-rileggi">Refresh preview</button><button class="piccolo primario" id="rp-crea">Create report and email it</button></div>
+    <div class="sel-piede"><button class="piccolo" id="rp-chiudi">Close</button><button class="piccolo" id="rp-rileggi">Refresh preview</button><button class="piccolo" id="rp-portale" hidden>Open upload page</button><button class="piccolo primario" id="rp-crea">Save report to Desktop</button></div>
   </div>
 </div>
 
@@ -540,7 +540,7 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
     <div class="ctl-corpo" style="max-height:60vh">
       <p><b>This is a test version, free of charge and provided as is, without any warranty.</b> Do not rely on it as the only recorder of a show you cannot repeat: always keep another recording running.</p>
       <p>The author accepts no liability for lost recordings, damage to equipment or data, or any other loss arising from its use.</p>
-      <p>The program sends nothing by itself. A test report is created only when you ask for it, with the <b>Test report…</b> button: you see what is inside, and you decide whether to email it.</p>
+      <p>The program sends nothing by itself. A test report is created only when you ask for it, with the <b>Test report…</b> button: you see what is inside, it is saved on your Desktop, and you decide whether to send it.</p>
       <p class="tenue">ATEM, DeckLink, HyperDeck, DaVinci Resolve and Blackmagic Design are trademarks of Blackmagic Design Pty Ltd. This program is not affiliated with or endorsed by Blackmagic Design. Licenses of the included components are in the <span class="num">licenses</span> folder of the program.</p>
     </div>
     <div class="sel-piede"><button class="piccolo primario" id="beta-ok">I understand, continue</button></div>
@@ -1708,7 +1708,8 @@ $("esci").onclick = async () => {
 };
 
 // ============================================================ rapporto di prova (sezioni 9.68 e 9.73)
-// Il registratore non manda niente da solo: prepara lo zip, apre la cartella e una mail già scritta.
+// Il registratore non manda niente da solo: salva lo zip sul Desktop e apre la cartella (sezione 9.84).
+// Il tester lo manda come vuole: per mail, o dalla pagina Filemail che si apre solo col tasto «Open upload page».
 const notaRapporto = () => $("rp-nota").value.trim();
 async function anteprimaRapporto() {
   $("rp-errore").textContent = "";
@@ -1723,12 +1724,14 @@ function apriRapporto() {
   if (inRegistrazione()) return avviso("Stop the recording first: the report reads the files of the last recording");
   $("rp-apri").classList.remove("invito");
   $("rp-fatto").innerHTML = "";
+  $("rp-portale").hidden = true;
   $("rp").classList.add("aperto");
   anteprimaRapporto();
 }
 $("rp-apri").onclick = apriRapporto;
 $("rp-chiudi").onclick = () => $("rp").classList.remove("aperto");
 $("rp-rileggi").onclick = anteprimaRapporto;
+$("rp-portale").onclick = () => chiedi("/rapporto/portale").catch(() => {});
 $("rp-crea").onclick = async () => {
   $("rp-crea").disabled = true;
   $("rp-errore").textContent = "";
@@ -1736,9 +1739,10 @@ $("rp-crea").onclick = async () => {
   try {
     const j = await chiedi("/rapporto/crea?nota=" + enc(notaRapporto()));
     if (j.errore) { $("rp-fatto").textContent = ""; $("rp-errore").textContent = j.errore; return; }
-    $("rp-fatto").innerHTML = "Report saved: <b>" + html(j.nome) + "</b>, " + j.kb + " KB, in the folder that has just opened. " +
-      (j.posta ? "Your mail program should now show a message to " : "No mail program answered: write to ") +
-      "<b>" + html(j.indirizzo) + "</b> with the subject <b>" + html(j.oggetto) + "</b> and attach the file. Thank you!";
+    $("rp-fatto").innerHTML = "Report saved on your Desktop: <b>" + html(j.nome) + "</b>, " + j.kb + " KB. " +
+      "Send it to me the way you prefer: press <b>Open upload page</b> and drop the file there, or attach it to an email to <b>" +
+      html(j.indirizzo) + "</b> with the subject <b>" + html(j.oggetto) + "</b>. Thank you!";
+    $("rp-portale").hidden = false;
   } catch (e) { $("rp-fatto").textContent = ""; $("rp-errore").textContent = "the recorder did not answer"; }
   finally { $("rp-crea").disabled = false; }
 };
