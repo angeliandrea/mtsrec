@@ -5,7 +5,7 @@
 <title>Multicam Timecode Sync Recorder User Manual</title>
 <style>
 @page { size: A4; margin: 18mm 17mm 20mm 17mm;
-  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 04"; font: 8pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 05"; font: 8pt "Segoe UI", sans-serif; color: #888; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", sans-serif; color: #888; } }
 @page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
 * { box-sizing: border-box; }
@@ -106,9 +106,10 @@ a { color: #a8541a; text-decoration: none; }
 
 <h1 id="installare">3 Installing and removing</h1>
 <ol>
-  <li>Run <code>Multicam Timecode Sync Recorder {{VERSIONE}} setup.exe</code>. The installer is not digitally signed yet, so Windows may show <i>Windows protected your PC</i>: click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</li>
-  <li>Accept the beta license. The program installs for your user only and needs no administrator rights. The default folder is <code>%LOCALAPPDATA%\Programs\mtsrec</code>.</li>
-  <li>At the end the beta tester guide opens. Read it: ten minutes.</li>
+  <li>Download the installer from <code>github.com/angeliandrea/mtsrec/releases</code>: one file, <code>mtsrec-</code><i>version</i><code>.msi</code>. Next to it a <code>.sha256</code> file holds its fingerprint, if you want to check the download.</li>
+  <li>Run it. The installer is not digitally signed yet, so Windows may show <i>Windows protected your PC</i>: click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>. On Windows 11 with <b>Smart App Control</b> turned on it is blocked altogether, with error 4551: you can see whether it is on in Windows Security › App &amp; browser control. In that case install on a computer where it is off, or wait for the signed version.</li>
+  <li>Accept the MIT license and click <span class="ui">Install</span>. The program installs for your user only and needs no administrator rights, in <code>%LOCALAPPDATA%\Programs\mtsrec</code>, with a shortcut on the desktop.</li>
+  <li>At the end <span class="ui">Launch Multicam Timecode Sync Recorder</span> is ticked: <span class="ui">Finish</span> opens the recorder. Read the beta tester guide from the Start menu: ten minutes.</li>
 </ol>
 <p>The Start menu gets a <b>Multicam Timecode Sync Recorder</b> folder:</p>
 <table>
@@ -120,7 +121,9 @@ a { color: #a8541a; text-decoration: none; }
   <tr><td>Multicam Timecode Sync Recorder - beta tester guide</td><td class="a">What to test and how to send the results.</td></tr>
   <tr><td>Multicam Timecode Sync Recorder - licenses</td><td class="a">The licenses of the program and of the included components.</td></tr>
 </table>
-<p><b>Updating</b>: run the setup of the new version. It replaces the program and keeps your settings, setups and input map.</p>
+<p><b>Updating</b>: run the installer of the new version. It replaces the program and keeps your settings, setups and input map.</p>
+<p><b>Coming from WinISORecorder</b>, the name of the program up to 0.9 beta 5: just install. The installer removes WinISORecorder, the first start moves settings, setups and input map from <code>%USERPROFILE%\WinISORecorder</code> to <code>%USERPROFILE%\mtsrec</code> and removes the old shortcuts. If WinISORecorder was installed for all users, the installer stops and asks you to uninstall it first from Windows Settings › Apps, which needs administrator rights; your settings are kept.</p>
+<p><b>Installing without questions</b>, for example on several machines: <code>msiexec /i mtsrec-</code><i>version</i><code>.msi /qn</code>. Add <code>DESKTOP_SHORTCUT=0</code> for no desktop shortcut.</p>
 <p><b>Removing</b>: Windows Settings › Apps › Multicam Timecode Sync Recorder › Uninstall. Your recordings are never touched. Settings, setups and the input map stay in <code>%USERPROFILE%\mtsrec</code>: delete that folder by hand if you want nothing left.</p>
 
 <h1 id="controllo">4 First launch: the system check</h1>
@@ -416,7 +419,7 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <tr><td><code>%USERPROFILE%\mtsrec</code></td><td class="a">Settings, saved setups in <code>setup</code>, the input map <code>porte.json</code>, the result of the system check, the test reports in <code>test reports</code>, the session logs in <code>logs</code> (the last ten). Kept when the program is removed.</td></tr>
 </table>
 <h2 id="licenze">15.3 Licenses</h2>
-<p>Multicam Timecode Sync Recorder is free of charge. It uses FFmpeg under the LGPL, Python and the Microsoft WebView2 SDK, each under its own license. The full texts are in the <code>licenses</code> folder of the program and in the Start menu.</p>
+<p>Multicam Timecode Sync Recorder is free and open source under the MIT License. The source code is at <code>github.com/angeliandrea/mtsrec</code>, and the installer you download is built from it by GitHub. It uses FFmpeg under the LGPL, built into the program (the repository explains how to rebuild it), Python, the Microsoft WebView2 SDK and the interface definitions of the Blackmagic DeckLink SDK, each under its own license. The full texts are in the <code>licenses</code> folder of the program and in the Start menu.</p>
 
 </body>
 </html>

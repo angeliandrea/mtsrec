@@ -25,9 +25,13 @@ four times the CPU and drive of HD. It has been recorded and turned into a Resol
 yet with a 4K ATEM: if you have one, your test is the most wanted.
 
 INSTALLING
-Run "Multicam Timecode Sync Recorder 0.9 beta 5 setup.exe". The installer is not signed yet, so Windows may show
-"Windows protected your PC": click "More info", then "Run anyway". It installs for your user only and
-needs no administrator rights.
+Download "mtsrec-<version>.msi" from https://github.com/angeliandrea/mtsrec/releases and run it.
+The installer is not signed yet, so Windows may show "Windows protected your PC": click "More info",
+then "Run anyway". On Windows 11 with Smart App Control turned on it is blocked altogether, with error
+4551 (Windows Security > App & browser control shows whether it is on): install on a computer where it
+is off, or wait for the signed version. It installs for your user only and needs no administrator rights.
+Had WinISORecorder, the name of this program up to 0.9 beta 5? Just install: it removes the old version
+and keeps your settings, setups and input map.
 
 FIRST LAUNCH
 1. The system check runs once, about twenty seconds: CPU, memory, cards and PCIe links, Desktop Video,
@@ -75,4 +79,5 @@ The full manual is a PDF: the Help button in the recorder, F1, or "Multicam Time
 Start menu. If the recorder finds that Desktop Video, DaVinci Resolve Studio or WebView2 is missing, it
 shows a window with the link to the official download page.
 
-Licenses and third-party components: the "licenses" folder of the program.
+Licenses and third-party components: the "licenses" folder of the program. The program is open source
+under the MIT License: https://github.com/angeliandrea/mtsrec
