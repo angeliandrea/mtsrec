@@ -134,24 +134,51 @@ def crea_in_resolve(resolve, fcpxml, nome_progetto, nome_timeline, note=(), mark
     if not tl:
         raise RuntimeError("Resolve rejected the timeline: " + str(fcpxml))
     p.SetCurrentTimeline(tl)
+    # ⚠ Un FCPXML 1080i50 Resolve lo importa come timeline a 50, che conta i semicampi (prova del 18 novembre
+    # 2026: progetto a 50, inizio al fotogramma 141578 per 70789 fotogrammi di file). I nostri fotogrammi
+    # contano a 25: sulla timeline si moltiplicano per il rapporto, che in progressivo vale 1.
+    rapporto = 1
+    try:
+        fps_tl = float(tl.GetSetting("timelineFrameRate") or 0)
+        fps_reg = cadenza.fps if cadenza is not None else float(TB)
+        if fps_tl and fps_reg:
+            rapporto = max(1, round(fps_tl / fps_reg))
+    except (TypeError, ValueError):
+        rapporto = 1
     # i fotogrammi dei marker contano dall'inizio della timeline
     # Resolve rifiuta un secondo marker sullo stesso fotogramma: si sposta al primo libero dopo.
     def metti(fr, colore, nome, nota, durata):
-        return any(tl.AddMarker(fr + k, colore, nome, nota, durata) for k in range(5))
+        return any(tl.AddMarker(fr * rapporto + k, colore, nome, nota, durata * rapporto) for k in range(5))
     contati = sum(1 for m in marker if metti(*m))
     # I marker valgono per tutte le tracce (Andrea, 31 ottobre): anche su ogni clip del media pool,
     # allo stesso timecode. Le tracce partono insieme, la clip dell'HyperDeck da un altro timecode.
     if marker:
-        inizio_tl = _tc(tl.GetStartTimecode(), cadenza)
+        # l'inizio della timeline dal suo fotogramma, che a 50 per l'interlacciato va diviso per due
+        inizio_tl = tl.GetStartFrame() // rapporto if rapporto > 1 else _tc(tl.GetStartTimecode(), cadenza)
         for clip in mp.GetRootFolder().GetClipList():
             pr = clip.GetClipProperty()
             if pr.get("Type") == "Timeline" or not pr.get("Start TC"):
                 continue
-            inizio_clip, durata_clip = _tc(pr["Start TC"], cadenza), int(pr.get("Frames") or 0)
+            # la clip multicamera nata da un FCPXML interlacciato è anche lei a 50: timecode e fotogrammi
+            # suoi si leggono alla sua cadenza, e i marker si mettono in fotogrammi suoi
+            r_clip = 1
+            try:
+                if float(pr.get("FPS") or 0) and (cadenza is not None or TB):
+                    r_clip = max(1, round(float(pr["FPS"]) / (cadenza.fps if cadenza is not None else float(TB))))
+            except (TypeError, ValueError):
+                r_clip = 1
+            if r_clip > 1:
+                from cadenza import Cadenza
+                c = cadenza if cadenza is not None else Cadenza.di(TB)
+                doppia = Cadenza(c.base * r_clip, c.num * r_clip, c.den, c.drop)
+                inizio_clip = doppia.da_testo(pr["Start TC"]) // r_clip
+                durata_clip = int(pr.get("Frames") or 0) // r_clip
+            else:
+                inizio_clip, durata_clip = _tc(pr["Start TC"], cadenza), int(pr.get("Frames") or 0)
             for fr, colore, testo, nota, durata in marker:
                 k = inizio_tl + fr - inizio_clip
                 if 0 <= k < durata_clip:
-                    clip.AddMarker(k, colore, testo, nota, durata)
+                    clip.AddMarker(k * r_clip, colore, testo, nota, durata * r_clip)
     contati += sum(1 for fr, nota in note if metti(fr, "Yellow", "ATEM", nota, 1))
     pezzi = [i for i in tl.GetItemListInTrack("video", 1)]
     pm.SaveProject()

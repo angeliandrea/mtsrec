@@ -82,3 +82,16 @@ void avvia_registro() {
     std::strftime(v, sizeof v, "%Y-%m-%d %H:%M:%S", &ora);
     std::printf("Session log started %s\n", v);
 }
+
+bool riga_da_tastiera(std::string& s) {
+    s.clear();
+    const HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+    if (!h || h == INVALID_HANDLE_VALUE) return false;
+    char c = 0;
+    DWORD n = 0;
+    while (ReadFile(h, &c, 1, &n, nullptr) && n == 1) {
+        if (c == '\n') return true;
+        s += c;
+    }
+    return !s.empty();
+}

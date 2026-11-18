@@ -16,3 +16,11 @@ inline const char* const FILE_IN_CORSO_VECCHIO = "REGISTRAZIONE IN CORSO.txt";
 // Ripara tutti i MOV di una cartella, coi WAV accanto. Restituisce quanti ne ha riparati, -1 se ha fallito.
 #include "formato.h"
 int ripara_cartella(const std::string& cartella, const Cadenza& cad);
+
+// All'apertura del registratore (18 novembre 2026): le registrazioni rimaste a metà nella cartella di
+// destinazione, un livello sotto, si riparano da sole. Prima si riparavano solo registrando di nuovo nella
+// stessa cartella, cosa che dalla pagina non succede mai perché ogni REC ha un nome nuovo: manuale e guida
+// promettevano la riparazione all'apertura, e la prova da capo l'ha trovata mancante. La cadenza si legge dal
+// MOV; si saltano le cartelle con un MOV scritto negli ultimi 30 secondi, che potrebbe essere ancora in corso.
+// Restituisce quante cartelle ha riparato.
+int ripara_interrotte(const std::string& destinazione);

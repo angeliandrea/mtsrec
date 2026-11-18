@@ -2,6 +2,8 @@
 #include <shellapi.h>
 
 #include "interfaccia.h"
+#include "registro.h"
+#include "ripara.h"
 
 #include <algorithm>
 #include <atomic>
@@ -94,7 +96,7 @@ struct App {
     std::string progetto_cartella;                    // sotto m: la registrazione di cui si costruisce il progetto
     std::atomic<int64_t> t_rec_us{0};
     std::atomic<bool> nomi_in_corso{false}, misura_in_corso{false}, esci{false}, disco_rileggi{false};
-    std::thread filo_nomi, filo_misura, filo_cerca, filo_ritardi, filo_mappa;
+    std::thread filo_nomi, filo_misura, filo_cerca, filo_ritardi, filo_mappa, filo_ripara;
     std::atomic<bool> mappa_in_corso{false};
     std::string mappa_esito = "null";                  // sotto m; il JSON dell'ultima mappa delle porte (9.78)
     std::atomic<bool> ritardi_in_corso{false}, ritardi_nuovi{false};
@@ -1103,6 +1105,12 @@ int interfaccia(bool controllo, Apertura apertura) {
         CoUninitialize();
         return 1;
     }
+    // Le registrazioni rimaste a metà nella destinazione si riparano da sole, in un filo suo (vedi ripara.h).
+    // Solo qui, dopo la porta: un secondo registratore aperto per sbaglio esce sopra senza toccare niente.
+    a->filo_ripara = std::thread([d = a->imp.cartella] {
+        const int n = ripara_interrotte(d);
+        if (n > 0) std::printf("interrupted recordings repaired at start: %d\n", n);
+    });
     const std::string url = "http://localhost:" + std::to_string(a->imp.porta) + "/";
     std::printf("mtsrec: the page is %s\n"
                 "while recording, Enter adds a marker, optionally preceded by text (\"red applause\"); "
@@ -1122,12 +1130,12 @@ int interfaccia(bool controllo, Apertura apertura) {
     }
 
     // La tastiera: marker durante la registrazione, «esci» per chiudere. Il filo resta fermo su
-    // getline anche dopo la fine, quindi tiene solo lo stato condiviso.
+    // ReadFile anche dopo la fine, quindi tiene solo lo stato condiviso. Mai std::cin: vedi registro.h.
     struct Tastiera { std::atomic<bool> esci{false}, finito{false}; std::mutex m; std::vector<std::string> righe; };
     auto tast = std::make_shared<Tastiera>();
     std::thread([tast] {
         std::string s;
-        while (!tast->finito && std::getline(std::cin, s)) {
+        while (!tast->finito && riga_da_tastiera(s)) {
             while (!s.empty() && (s.back() == ' ' || s.back() == '\r')) s.pop_back();
             if (s == "esci" || s == "quit" || s == "exit" || s == "q") { tast->esci = true; continue; }
             std::lock_guard<std::mutex> l(tast->m);
@@ -1163,6 +1171,7 @@ int interfaccia(bool controllo, Apertura apertura) {
     if (a->filo_cerca.joinable()) a->filo_cerca.join();
     if (a->filo_ritardi.joinable()) a->filo_ritardi.join();
     if (a->filo_mappa.joinable()) a->filo_mappa.join();
+    if (a->filo_ripara.joinable()) a->filo_ripara.join();
     a->marcatore->ferma();
     a->reg.reset();
     for (auto& in : a->ingressi) in->ferma();

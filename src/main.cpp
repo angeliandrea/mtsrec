@@ -310,7 +310,7 @@ int main(int argc, char** argv) {
                              ingressi.size(), porta_marker > 0 ? porta_marker : 8811);
             std::thread([stop, secondi] {
                 std::string s;
-                while (std::getline(std::cin, s)) {
+                while (riga_da_tastiera(s)) {
                     while (!s.empty() && (s.back() == ' ' || s.back() == '\r')) s.pop_back();
                     if (s == "stop" || s == "fine" || s == "q") { *stop = true; return; }
                 }
@@ -405,7 +405,7 @@ int main(int argc, char** argv) {
                         " (\"red applause\"); type stop and Enter to stop\n");
             std::thread([comandi, secondi] {
                 std::string s;
-                while (std::getline(std::cin, s)) {
+                while (riga_da_tastiera(s)) {
                     if (!comandi->attivo) return;
                     while (!s.empty() && (s.back() == ' ' || s.back() == '\r')) s.pop_back();
                     if (s == "stop" || s == "fine" || s == "q") { comandi->stop = true; return; }
