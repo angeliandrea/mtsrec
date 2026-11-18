@@ -1,0 +1,9 @@
+/build/
+/deps/
+/uscita/
+installatore/uscita/
+__pycache__/
+*.pyc
+*.msi
+*.wixobj
+*.wixpdb

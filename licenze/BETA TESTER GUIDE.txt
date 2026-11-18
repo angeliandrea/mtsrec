@@ -1,0 +1,78 @@
+Multicam Timecode Sync Recorder beta — guide for testers
+
+Thank you for testing. This guide takes ten minutes to read and saves hours of guessing.
+
+WHAT YOU NEED
+- Windows 10 or 11, 64-bit
+- one or more Blackmagic DeckLink cards with Blackmagic Desktop Video installed
+- an ATEM switcher on the same network, with its aux outputs cabled to the DeckLink inputs over SDI.
+  The ATEM embeds its timecode in every SDI output: that is what lines the files up.
+- DaVinci Resolve Studio for the ready-made project. Without it you still get FCPXML, Premiere XML and EDL
+- a fast drive, preferably NVMe: at 25 fps each DNxHD 185 track writes about 23 MB/s, twice as much
+  at 50 and 60 fps
+
+FORMATS
+The recorder reads the format and frame rate from the ATEM and records exactly that: no scaling, no
+frame rate conversion. It follows the ATEM by itself when the standard changes, while it is not recording.
+- 1080p at 23.98, 24, 25, 29.97, 30, 50, 59.94 and 60
+- 1080i at 50, 59.94 and 60
+- 2160p, EXPERIMENTAL, at the same eight progressive rates
+DNxHD in HD, high, medium or low quality; its name follows the frame rate (185 at 25p, 220 at 29.97p,
+365 at 50p...). DNxHR HQ, SQ or LB in UHD. At 29.97 and 59.94 the timecode is drop-frame when the ATEM
+sends it so. An input that receives a different format from the ATEM stays empty and says so in red.
+UHD needs 12G-SDI or HDMI 2.0 inputs (3G cards such as the DeckLink Duo 2 cannot receive it) and about
+four times the CPU and drive of HD. It has been recorded and turned into a Resolve project, but never
+yet with a 4K ATEM: if you have one, your test is the most wanted.
+
+INSTALLING
+Run "Multicam Timecode Sync Recorder 0.9 beta 5 setup.exe". The installer is not signed yet, so Windows may show
+"Windows protected your PC": click "More info", then "Run anyway". It installs for your user only and
+needs no administrator rights.
+
+FIRST LAUNCH
+1. The system check runs once, about twenty seconds: CPU, memory, cards and PCIe links, Desktop Video,
+   drives, network, Windows settings and an encoding test. It tells you how many tracks this machine can
+   record and what to fix. Fix the red items before recording.
+2. "Open recorder". Off air, press "Map inputs..." under the tracks: it finds which ATEM aux output is
+   cabled to each DeckLink input, switching each aux for a moment and putting it back. Then add tracks
+   with "+ Add track", or "Add all inputs" for every DeckLink input of the computer, mapped inputs first
+   in aux order. "Tracks possible" shows the limit and what sets it.
+3. Choose the destination, set the ATEM address if it was not found by itself, and save the whole
+   configuration with "Save as…" if you want to recall it.
+
+WHAT TO TEST, IN THIS ORDER
+1. A 1-minute recording with a few cuts and dissolves on the program, and two markers.
+   At STOP check: no dropped frames, the Resolve project opens with the multicam and the cut timeline.
+2. Ten minutes with all the tracks your machine handles.
+3. One hour, if you can: this is the test that says the most.
+4. Anything your control room does differently: other ATEM models, HDMI inputs, converters,
+   Thunderbolt boxes, a HyperDeck recording alongside ("HyperDeck clips…").
+5. The frame rate you work at, if it is not 25: above all 29.97 and 59.94 with drop-frame timecode, and
+   1080i. Check that the cuts in Resolve land on the right frame.
+6. With a 4K ATEM: the same tests in 2160p. Check that the timecode is "TC FROM SIGNAL" on every track
+   and that the cuts in Resolve land on the right frame.
+Always off air, or with another recorder running: this is a beta.
+
+SENDING THE RESULTS
+After each test press "Test report…" (top bar of the recorder, it lights up after STOP).
+- You see everything that is inside before anything is created.
+- Write a few notes: ATEM model, cards, cabling, what you tested, what went wrong.
+- "Create report and email it" saves a small zip (about 10 KB), opens its folder and prepares an email
+  to info@angeliandrea.it. Attach the zip and send. If no mail program opens, send it from your webmail
+  with the subject shown on screen.
+
+The report contains no video, no IP addresses, no computer or user names, no file paths and no recording
+or source names: they are replaced with the DeckLink port names. A random ID, chosen once per machine,
+tells the reports apart. Nothing is ever sent without you.
+
+IF SOMETHING GOES WRONG
+Note what you did, then send a test report anyway, with your notes: a failed test is the most useful one.
+A recording interrupted by a crash or power loss is repaired automatically the next time the recorder
+opens.
+
+THE USER MANUAL
+The full manual is a PDF: the Help button in the recorder, F1, or "Multicam Timecode Sync Recorder - user manual" in the
+Start menu. If the recorder finds that Desktop Video, DaVinci Resolve Studio or WebView2 is missing, it
+shows a window with the link to the official download page.
+
+Licenses and third-party components: the "licenses" folder of the program.

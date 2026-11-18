@@ -1,0 +1,30 @@
+// L'icona e la scheda «Dettagli» del programma (sezioni 9.61 e 9.81). La versione viene da VERSIONE.txt.
+#include <winver.h>
+#include "versione.h"
+
+1 ICON "mtsrec.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION MTSREC_VERSIONE_VIRGOLE
+PRODUCTVERSION MTSREC_VERSIONE_VIRGOLE
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", "Andrea Angeli"
+            VALUE "FileDescription", "Multicam Timecode Sync Recorder"
+            VALUE "FileVersion", MTSREC_VERSIONE_TESTO
+            VALUE "ProductName", "Multicam Timecode Sync Recorder"
+            VALUE "ProductVersion", MTSREC_VERSIONE_TESTO
+            VALUE "OriginalFilename", "mtsrec.exe"
+            VALUE "LegalCopyright", "Copyright (c) 2026 Andrea Angeli. MIT License."
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

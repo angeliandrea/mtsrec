@@ -1,0 +1,39 @@
+Multicam Timecode Sync Recorder — third-party components
+
+Multicam Timecode Sync Recorder is free software under the MIT License (see LICENSE.txt).
+It includes or uses the following components. Each remains under its own license.
+
+FFmpeg
+  libavcodec, libavformat and libavutil, version 9.0.2, built from the official source release
+  (https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz) with only the parts the recorder uses: DNxHD, MJPEG
+  and PCM codecs, MOV and WAV formats, file protocol. No GPL or non-free parts are enabled.
+  Licensed under the GNU Lesser General Public License, version 2.1 or later: see "FFmpeg LICENSE.txt".
+  The libraries are linked statically into mtsrec.exe. The complete source code of the recorder and the
+  scripts that build FFmpeg and link it (ffmpeg\compila-ffmpeg.sh and .bat, CMakeLists.txt) are published
+  at https://github.com/angeliandrea/mtsrec, so the program can be rebuilt with a modified FFmpeg.
+  FFmpeg is a trademark of Fabrice Bellard.
+
+Python
+  Python 3.13 embeddable package, from python.org, in the "python" folder.
+  Licensed under the Python Software Foundation License: see "python\LICENSE.txt".
+
+Microsoft Edge WebView2
+  The program window uses the WebView2 Runtime already present in Windows, through the static loader of
+  the Microsoft WebView2 SDK. See "WebView2 LICENSE.txt".
+
+Blackmagic Design DeckLink SDK
+  The program talks to DeckLink cards through the COM interfaces described in the .idl files of the
+  Blackmagic DeckLink SDK 16.0, Copyright (c) 2026 Blackmagic Design, distributed under the license in
+  their headers and the DeckLink SDK End User License Agreement
+  (https://www.blackmagicdesign.com/EULA/DeckLinkSDK). No sample code from the SDK is included.
+  Blackmagic Desktop Video, the driver, is not included and must be installed from Blackmagic Design.
+
+WiX Toolset
+  The installer is built with the WiX Toolset 3.14 (https://wixtoolset.org), Microsoft Reciprocal License.
+  No part of WiX is included in the installed program.
+
+Trademarks
+  ATEM, DeckLink, HyperDeck, DaVinci Resolve, Desktop Video and Blackmagic Design are trademarks of
+  Blackmagic Design Pty Ltd. Multicam Timecode Sync Recorder is not affiliated with or endorsed by
+  Blackmagic Design. Adobe and Premiere Pro are trademarks of Adobe. All other trademarks belong to
+  their owners.

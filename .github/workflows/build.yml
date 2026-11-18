@@ -1,0 +1,127 @@
+# Builds Multicam Timecode Sync Recorder from scratch on a clean Windows machine: FFmpeg from the official
+# source, the program, the user manual already in the repository, and the MSI installer.
+# Every download is checked against its SHA-256. On a tag v* the MSI is attached to a GitHub release.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FFMPEG_VERSION: 9.0.2
+  FFMPEG_SHA256: 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
+  PYTHON_VERSION: 3.13.17
+  PYTHON_SHA256: 9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38
+  WEBVIEW2_VERSION: 1.0.2903.40
+  WEBVIEW2_SHA256: ef128016dd1e51c59178c827ed5b8aa3322c57afa8675d930f8109505542ad74
+  WIX_SHA256: 6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      MTSREC_DEPS: ${{ github.workspace }}\deps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify the dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $d = $env:MTSREC_DEPS
+          New-Item -ItemType Directory -Force $d | Out-Null
+          function Get-Verified($url, $file, $sha) {
+            Invoke-WebRequest -Uri $url -OutFile $file
+            $h = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+            if ($h -ne $sha) { throw "$file : SHA-256 $h, expected $sha" }
+            Write-Host "$file verified"
+          }
+          Get-Verified "https://ffmpeg.org/releases/ffmpeg-$env:FFMPEG_VERSION.tar.xz" "$d\ffmpeg.tar.xz" $env:FFMPEG_SHA256
+          Get-Verified "https://www.python.org/ftp/python/$env:PYTHON_VERSION/python-$env:PYTHON_VERSION-embed-amd64.zip" "$d\python.zip" $env:PYTHON_SHA256
+          Get-Verified "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$env:WEBVIEW2_VERSION" "$d\webview2.zip" $env:WEBVIEW2_SHA256
+          Get-Verified "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" "$d\wix.zip" $env:WIX_SHA256
+          Expand-Archive "$d\python.zip" "$d\python-$env:PYTHON_VERSION-embed-amd64"
+          Expand-Archive "$d\webview2.zip" "$d\webview2-sdk\$env:WEBVIEW2_VERSION"
+          Expand-Archive "$d\wix.zip" "$d\wix314"
+          tar -xf "$d\ffmpeg.tar.xz" -C $d
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          path-type: inherit
+          update: false
+          install: >-
+            make
+            diffutils
+            pkgconf
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-nasm
+
+      - name: Build FFmpeg (static, LGPL, only what the recorder uses)
+        shell: msys2 {0}
+        run: |
+          # MSYS2 has no clang-cl.exe: a copy of clang.exe with that name starts it in cl mode
+          [ -f /clang64/bin/clang-cl.exe ] || cp /clang64/bin/clang.exe /clang64/bin/clang-cl.exe
+          DEPS="$(cygpath -u "$MTSREC_DEPS")"
+          bash ffmpeg/compila-ffmpeg.sh "$DEPS/ffmpeg-$FFMPEG_VERSION" "$DEPS/ffmpeg-statico"
+
+      - name: Build the recorder
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check ninja
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build\mtsrec.exe --sonda nothing.mov; if ($LASTEXITCODE -ne 1) { throw "mtsrec.exe does not start" }
+          dumpbin /dependents build\mtsrec.exe
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          python installatore/crea-msi.py --build build --wix "$env:MTSREC_DEPS\wix314" --uscita uscita
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # The fingerprint next to the installer, in the format sha256sum -c reads
+          Get-ChildItem uscita\*.msi | ForEach-Object {
+            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" | Out-File -Encoding ascii "$($_.FullName).sha256"
+          }
+
+      - uses: actions/upload-artifact@v4
+        id: artefatto
+        with:
+          name: mtsrec-unsigned
+          path: |
+            uscita/*.msi
+            uscita/*.sha256
+            build/mtsrec.exe
+          if-no-files-found: error
+
+      # Signing with SignPath Foundation, once the project is accepted (CODE_SIGNING_POLICY.md):
+      # - uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ...
+      #     project-slug: mtsrec
+      #     signing-policy-slug: release-signing
+      #     github-artifact-id: ${{ steps.artefatto.outputs.artifact-id }}
+      #     wait-for-completion: true
+      #     output-artifact-directory: firmato
+
+      - name: Attach the installer to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            uscita/*.msi
+            uscita/*.sha256
+          prerelease: ${{ contains(github.ref_name, 'beta') }}

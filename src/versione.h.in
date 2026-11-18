@@ -1,0 +1,4 @@
+// Generato da CMakeLists.txt a partire da VERSIONE.txt: non si modifica a mano.
+#pragma once
+#define MTSREC_VERSIONE_TESTO   "@WINISO_VERSIONE@"
+#define MTSREC_VERSIONE_VIRGOLE @WINISO_V1@,@WINISO_V2@,@WINISO_V3@,0

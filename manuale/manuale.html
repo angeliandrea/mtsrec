@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Multicam Timecode Sync Recorder User Manual</title>
+<style>
+@page { size: A4; margin: 18mm 17mm 20mm 17mm;
+  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 04"; font: 8pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", sans-serif; color: #888; } }
+@page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
+* { box-sizing: border-box; }
+body { font: 10pt/1.5 "Segoe UI", Arial, sans-serif; color: #1d1d22; margin: 0; }
+h1, h2, h3 { font-weight: 600; color: #111; line-height: 1.25; }
+h1 { font-size: 19pt; margin: 0 0 4mm; padding-top: 1mm; border-bottom: 2px solid #d07a26; padding-bottom: 2mm; break-before: page; }
+h2 { font-size: 12.5pt; margin: 7mm 0 2mm; break-after: avoid; }
+h3 { font-size: 10.5pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2.5mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+li { margin: 0 0 1mm; }
+code, .k { font-family: Consolas, "Cascadia Mono", monospace; font-size: 9pt; }
+.k { border: 1px solid #b9b9c2; border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: #f6f6f8; white-space: nowrap; }
+.ui { font-weight: 600; }
+pre { font: 8.8pt/1.45 Consolas, monospace; background: #f3f3f6; border-left: 3px solid #d07a26; padding: 2.5mm 3.5mm; margin: 0 0 3mm; white-space: pre-wrap; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; margin: 1mm 0 4mm; font-size: 9.2pt; break-inside: auto; }
+th { text-align: left; font-weight: 600; background: #ececf0; }
+th, td { border: 1px solid #d3d3da; padding: 1.4mm 2.2mm; vertical-align: top; }
+tr { break-inside: avoid; }
+td:first-child { white-space: nowrap; }
+td.a { white-space: normal; }
+figure { margin: 2mm 0 5mm; break-inside: avoid; }
+figure img { width: 100%; border: 1px solid #222; display: block; }
+figcaption { font-size: 8.5pt; color: #666; margin-top: 1.5mm; }
+.nota { border: 1px solid #e3b27c; background: #fdf4ea; padding: 2.5mm 3.5mm; margin: 0 0 4mm; break-inside: avoid; }
+.attenzione { border: 1px solid #e08a8c; background: #fdeeee; padding: 2.5mm 3.5mm; margin: 0 0 4mm; break-inside: avoid; }
+.nota p:last-child, .attenzione p:last-child { margin: 0; }
+a { color: #a8541a; text-decoration: none; }
+/* copertina */
+.copertina { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; }
+.copertina .marchio { font-size: 11pt; color: #d07a26; font-weight: 700; letter-spacing: .08em; }
+.copertina h1.titolo { break-before: auto; border: 0; font-size: 34pt; margin: 55mm 0 3mm; padding: 0; }
+.copertina .sotto { font-size: 14pt; color: #444; }
+.copertina .dati { font-size: 10pt; color: #555; }
+.copertina .dati b { color: #111; }
+/* indice */
+.indice { break-before: page; }
+.indice h2 { font-size: 19pt; margin: 0 0 5mm; border-bottom: 2px solid #d07a26; padding-bottom: 2mm; }
+.indice ol { list-style: none; padding: 0; margin: 0; }
+.indice li { display: flex; align-items: baseline; margin: 0 0 1.6mm; }
+.indice li.s { padding-left: 7mm; font-size: 9.3pt; margin-bottom: 1mm; }
+.indice li a { color: #1d1d22; }
+.indice li .riempi { flex: 1; border-bottom: 1px dotted #aaa; margin: 0 2mm; transform: translateY(-1mm); }
+.indice li .pag { min-width: 6mm; text-align: right; color: #555; }
+</style>
+</head>
+<body>
+
+<section class="copertina">
+  <div class="marchio">● Multicam Timecode Sync Recorder</div>
+  <div>
+    <h1 class="titolo">User Manual</h1>
+    <div class="sotto">ISO recording for ATEM switchers on Blackmagic DeckLink cards, with the Resolve project built at STOP</div>
+  </div>
+  <div class="dati">
+    <p><b>Program version {{VERSIONE}}</b> · manual revision 03 · 17 November 2026</p>
+    <p>This is a beta version, free of charge and provided as is, without any warranty. Never use it as the only recorder of a show you cannot repeat: always keep another recording running.</p>
+    <p>ATEM, DeckLink, HyperDeck, Desktop Video, DaVinci Resolve and Blackmagic Design are trademarks of Blackmagic Design Pty Ltd. Premiere Pro is a trademark of Adobe. Multicam Timecode Sync Recorder is not affiliated with or endorsed by any of them.</p>
+  </div>
+</section>
+
+<nav class="indice">
+  <h2>Contents</h2>
+  <ol id="indice">{{INDICE}}</ol>
+</nav>
+
+<h1 id="cosa">1 What Multicam Timecode Sync Recorder does</h1>
+<p>Multicam Timecode Sync Recorder records every DeckLink input of a Windows computer to its own file while an ATEM switcher runs the show. This is called ISO recording: one file per camera, plus the program if you want it.</p>
+<ul>
+  <li><b>Every file carries the ATEM timecode.</b> The ATEM embeds its timecode in every SDI output. The recorder writes it into the files, so all the angles line up to the frame in any editing program.</li>
+  <li><b>The live edit is logged.</b> While recording, the recorder listens to the ATEM and logs every cut and dissolve on the program.</li>
+  <li><b>At STOP the edit is ready.</b> DaVinci Resolve Studio receives a project with a multicam clip of all the angles and a timeline with the same cuts as the live show. You can change any cut, because every angle is there. The same edit is also written as FCPXML, Premiere Pro XML and EDL.</li>
+  <li><b>Markers on the fly</b>, from the window, the keyboard or the network (Bitfocus Companion, a Stream Deck, any HTTP client). They land on the Resolve timeline with their text and color.</li>
+  <li><b>It knows the machine.</b> A system check measures the processor and the drives and tells you how many tracks this computer can record with a safe margin.</li>
+</ul>
+<p>Recording uses DNxHD in HD and DNxHR in UHD, in MOV files, with the SDI audio alongside as Broadcast WAV. <b>The format and frame rate are those of the ATEM</b>: the recorder reads them from the switcher and records exactly that, with no scaling and no frame rate conversion (<a href="#formato">6.3</a>).</p>
+
+<h1 id="requisiti">2 What you need</h1>
+<table>
+  <tr><th>Item</th><th>Needed for</th><th>Notes</th></tr>
+  <tr><td>Windows 10 or 11, 64-bit</td><td class="a">everything</td><td class="a">Windows only, for now.</td></tr>
+  <tr><td>Blackmagic DeckLink cards</td><td class="a">capture</td><td class="a">SDI inputs for timecode from the ATEM. For UHD, 12G-SDI or HDMI 2.0 inputs (see <a href="#uhd">chapter 12</a>).</td></tr>
+  <tr><td>Blackmagic Desktop Video 16 or later</td><td class="a"><b>required</b>: the driver of the cards</td><td class="a">Free, from the Blackmagic Design support page.</td></tr>
+  <tr><td>An ATEM switcher with aux outputs</td><td class="a">timecode, cuts, source names</td><td class="a">On the same network as the computer. Its aux outputs are cabled to the DeckLink inputs over SDI.</td></tr>
+  <tr><td>DaVinci Resolve Studio</td><td class="a">the Resolve project at STOP</td><td class="a">Optional. Without it you still get FCPXML, Premiere XML and EDL. The free version of Resolve does not accept scripts from other programs.</td></tr>
+  <tr><td>Microsoft Edge WebView2 Runtime</td><td class="a">the recorder's own window</td><td class="a">Optional: already present on most Windows 10 and 11 computers. Without it the recorder opens in the web browser and works the same.</td></tr>
+  <tr><td>A fast drive</td><td class="a">recording</td><td class="a">Preferably NVMe. At 25 fps each DNxHD 185 track writes about 23 MB/s, each DNxHR HQ track about 91 MB/s. At 50 and 60 fps it is twice as much.</td></tr>
+</table>
+<p><b>Nothing else to install.</b> Python, FFmpeg and the other components travel inside the program folder.</p>
+
+<h2 id="mancante">2.1 The "Software needed" window</h2>
+<p>When the recorder opens it checks for Desktop Video, DaVinci Resolve Studio and WebView2. If something is missing, a window lists it with the reason and a <span class="ui">Download…</span> button that opens the official page in your web browser. Install from there, restart the computer if the installer asks, then open the recorder again.</p>
+<ul>
+  <li><b>Desktop Video</b> is marked REQUIRED and the window comes back every time the recorder opens, until it is installed. A version older than 16 counts as missing.</li>
+  <li>For the optional items, <span class="ui">Don't ask again</span> stops the reminder. <span class="ui">Not now</span> closes the window until the next launch.</li>
+</ul>
+<p>The program never downloads or installs anything by itself.</p>
+
+<h1 id="installare">3 Installing and removing</h1>
+<ol>
+  <li>Run <code>Multicam Timecode Sync Recorder {{VERSIONE}} setup.exe</code>. The installer is not digitally signed yet, so Windows may show <i>Windows protected your PC</i>: click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</li>
+  <li>Accept the beta license. The program installs for your user only and needs no administrator rights. The default folder is <code>%LOCALAPPDATA%\Programs\mtsrec</code>.</li>
+  <li>At the end the beta tester guide opens. Read it: ten minutes.</li>
+</ol>
+<p>The Start menu gets a <b>Multicam Timecode Sync Recorder</b> folder:</p>
+<table>
+  <tr><th>Shortcut</th><th>What it does</th></tr>
+  <tr><td>Multicam Timecode Sync Recorder</td><td class="a">Opens the recorder in its own window.</td></tr>
+  <tr><td>Multicam Timecode Sync Recorder - in browser</td><td class="a">Opens the recorder in the web browser, for computers without WebView2 or when you prefer it.</td></tr>
+  <tr><td>Multicam Timecode Sync Recorder - system check</td><td class="a">Runs the system check again.</td></tr>
+  <tr><td>Multicam Timecode Sync Recorder - user manual</td><td class="a">This manual.</td></tr>
+  <tr><td>Multicam Timecode Sync Recorder - beta tester guide</td><td class="a">What to test and how to send the results.</td></tr>
+  <tr><td>Multicam Timecode Sync Recorder - licenses</td><td class="a">The licenses of the program and of the included components.</td></tr>
+</table>
+<p><b>Updating</b>: run the setup of the new version. It replaces the program and keeps your settings, setups and input map.</p>
+<p><b>Removing</b>: Windows Settings › Apps › Multicam Timecode Sync Recorder › Uninstall. Your recordings are never touched. Settings, setups and the input map stay in <code>%USERPROFILE%\mtsrec</code>: delete that folder by hand if you want nothing left.</p>
+
+<h1 id="controllo">4 First launch: the system check</h1>
+<p>The first time, before the recording window, the recorder checks the machine. It takes about twenty seconds and runs only once: the result is saved, and the check repeats by itself when the hardware changes.</p>
+<figure><img src="img/m-controllo.png" alt="System check"><figcaption>Figure 1 – The system check. The verdict on the left, the list of checks on the right, the items to fix below. Network addresses are hidden in the pictures of this manual.</figcaption></figure>
+<p>It covers:</p>
+<ul>
+  <li>operating system, processor, memory and graphics cards</li>
+  <li>PCIe cards and the speed of their links</li>
+  <li>Desktop Video and the DeckLink cards, with every input and what it can capture</li>
+  <li>the drives, with a write test on the drive you will record to</li>
+  <li>the network: ATEM, HyperDeck and the recorder's own port</li>
+  <li>Windows settings that can spoil a recording, such as Windows Update downloading during the show</li>
+  <li>the program package</li>
+  <li>an encoding test with every codec, which gives the number of tracks the processor handles with a 30% margin</li>
+</ul>
+<p>The verdict is green, yellow or red. <b>Fix the red items before recording.</b> Each item in <i>To do</i> comes with its remedy, and <span class="ui">Check again</span> repeats the check. <span class="ui">Open recorder</span> goes on to the recording window. <span class="ui">Save check (JSON)</span> saves the full result to a file.</p>
+<p>The check opens again at any time with <span class="ui">System check</span> in the title bar of the recording window, or from the Start menu.</p>
+
+<h1 id="cablaggio">5 Cabling and the input map</h1>
+<h2 id="cavi">5.1 Cabling</h2>
+<p>Connect each ATEM aux output to a DeckLink input with an SDI cable. Put on each aux the source you want to record: a camera, the program, the clean feed. The ATEM embeds its timecode in every SDI output, and that is what lines the files up.</p>
+<div class="nota"><p>Before recording, every track should show <span class="ui">TC FROM SIGNAL</span>. A track without it is not receiving the ATEM timecode: check that its input comes from the ATEM over SDI.</p></div>
+
+<h2 id="mappa">5.2 The input map</h2>
+<p>No device knows which aux is cabled to which DeckLink input. The input map finds out once and saves it. With the map, every track shows its aux and the name of the source on it (<i>AUX 3 ← Camera 3</i>), the file takes that name, <span class="ui">Add all inputs</span> puts the mapped inputs first in aux order, and the Resolve project knows which ATEM input each track records.</p>
+<p>To make it:</p>
+<ol>
+  <li>Set the ATEM address in Settings.</li>
+  <li>Press <span class="ui">Map inputs…</span> under the tracks, or <span class="ui">Map</span> on the Input map row in Settings, and confirm.</li>
+  <li>Wait about a second per aux, about 15 seconds for twelve. A message at the bottom of the window gives the result: how many inputs were linked to an aux, and whether the ATEM was restored.</li>
+</ol>
+<p>For each aux the recorder switches it for about a second to black and then to bars, and watches which open input changes. Then it puts the aux back as it was, and at the end it reads the ATEM again to verify every aux. The state of the aux outputs is saved on disk before anything is changed. An input that answers to more than one aux is reported and left out of the map: check its cabling. An input without signal cannot be tested: it keeps the aux it had in the previous map, unless another input has taken that aux.</p>
+<div class="attenzione"><p><b>The input map writes to the ATEM: make it off air only, never during a show.</b> It cannot run while recording, and REC and Measure are refused until it has finished.</p></div>
+<p>The map is saved to <code>%USERPROFILE%\mtsrec\porte.json</code>. Make it again whenever the cabling changes. The <span class="ui">Input map</span> light in the title bar of the recording window shows how many inputs are mapped, and the menu of free inputs shows each input with its aux and source, or <i>not in the input map</i>.</p>
+<p>The same map can be made from a command prompt with the recorder closed, for example to map only some aux outputs:</p>
+<pre>cd "%LOCALAPPDATA%\Programs\mtsrec"
+python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</pre>
+<p>With <code>--prova</code> the script reads the ATEM and opens the inputs without changing anything.</p>
+
+<h1 id="finestra">6 The recording window</h1>
+<figure><img src="img/m-registratore.png" alt="Recording window"><figcaption>Figure 2 – The recording window with twelve tracks, ready to record. Thumbnails are black because no image reached the inputs when the picture was taken.</figcaption></figure>
+<p>From the top: the title bar, then the Settings, Transport, Resources and System panels, the toolbar, the tracks with their timeline, and at the bottom the bar that scrolls the timeline.</p>
+
+<h2 id="titolo">6.1 Title bar</h2>
+<ul>
+  <li><b>Version</b> and the <span class="ui">System check</span> button.</li>
+  <li><b>Recording</b>: the name of the current or next recording.</li>
+  <li><b>Lights</b>: <span class="ui">ATEM</span> and <span class="ui">HyperDeck</span> connected, <span class="ui">Input map</span> present, <span class="ui">:8811</span> the network port for markers. Hover a light for details.</li>
+  <li>The computer clock and <span class="ui">Quit</span>.</li>
+</ul>
+
+<h2 id="impostazioni">6.2 Settings</h2>
+<p>The settings are locked while recording.</p>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td>Destination</td><td class="a">Drive and folder of the recordings, with the free space. <span class="ui">Choose…</span> opens the drive and folder picker, which also takes network paths (<code>\\server\folder</code>), creates folders and names the recording. Left empty, the name is the date and time of REC.</td></tr>
+  <tr><td>Codec</td><td class="a">High, medium or low quality, the same for every track. The names change with the frame rate: see <a href="#formato">6.3</a>.</td></tr>
+  <tr><td>Format</td><td class="a">Not a choice: the format of the ATEM, read from the switcher, such as <i>1080p25 · from the ATEM</i>. See <a href="#formato">6.3</a>.</td></tr>
+  <tr><td>SDI audio</td><td class="a">2, 8 or 16 channels embedded in the SDI, recorded as they are, with no processing.</td></tr>
+  <tr><td>Expected duration</td><td class="a">Until STOP, or a set time. Tracks possible and the status line use it to tell you whether the drive holds the whole show.</td></tr>
+  <tr><td>Broadcast WAV</td><td class="a">Always written alongside the MOV files, with the same timecode.</td></tr>
+  <tr><td>Resolve project</td><td class="a"><i>yes, when recording ends</i>: the Resolve project is built at STOP. <i>no</i>: only FCPXML, Premiere XML and EDL.</td></tr>
+  <tr><td>ATEM</td><td class="a">The address of the ATEM, found by itself on the network when possible. <span class="ui">Names</span> reads the source names on the aux outputs again.</td></tr>
+  <tr><td>HyperDeck</td><td class="a">The address of a HyperDeck recording the program alongside, optional: the recorder starts and stops it with REC and STOP.</td></tr>
+  <tr><td>Delays</td><td class="a">The delay of each input is set on its track. <span class="ui">Measure</span> measures it: see <a href="#ritardi">chapter 9</a>.</td></tr>
+  <tr><td>Input map</td><td class="a">How many inputs are linked to an ATEM aux. <span class="ui">Map</span> makes the map again: see <a href="#mappa">5.2</a>.</td></tr>
+</table>
+
+<h2 id="formato">6.3 Format and frame rate</h2>
+<p><b>The recorder records what the ATEM sends.</b> It reads the video standard from the switcher every few seconds while it is not recording, and sets itself to the same format and frame rate. There is no scaling and no frame rate conversion: they would cost processor time that belongs to the tracks. The Format field shows the result and where it comes from:</p>
+<ul>
+  <li><i>from the ATEM</i>: the standard read from the switcher. This is the normal case.</li>
+  <li><i>from the signal</i>: the ATEM does not answer, and every input receives the same format. The recorder uses that.</li>
+  <li><i>waiting for the ATEM or a signal</i>: neither is available yet.</li>
+  <li><i>ATEM format not recordable</i>, in red: the ATEM works in 720p, 8K or SD, which the recorder does not record.</li>
+</ul>
+<p>When the ATEM changes standard, the recorder follows by itself: it reopens the inputs and picks the codec of the new frame rate at the same quality level. During a recording nothing changes. An input that receives a different format from the ATEM, for example a camera at 1080p50 with the ATEM at 1080p25, says so in red on its track and records nothing until the formats match.</p>
+<table>
+  <tr><th>Format</th><th>Frame rates</th><th>Codec: high, medium, low</th></tr>
+  <tr><td>1080p</td><td class="a">23.98, 24</td><td class="a">DNxHD 175, 115, 36</td></tr>
+  <tr><td></td><td class="a">25</td><td class="a">DNxHD 185, 120, 36</td></tr>
+  <tr><td></td><td class="a">29.97, 30</td><td class="a">DNxHD 220, 145, 45</td></tr>
+  <tr><td></td><td class="a">50</td><td class="a">DNxHD 365, 240, 75</td></tr>
+  <tr><td></td><td class="a">59.94, 60</td><td class="a">DNxHD 440, 290, 90</td></tr>
+  <tr><td>1080i</td><td class="a">50, 59.94, 60</td><td class="a">high and medium only: DNxHD 185, 120 at 50, DNxHD 220, 145 at 59.94 and 60</td></tr>
+  <tr><td>2160p, experimental</td><td class="a">23.98, 24, 25, 29.97, 30, 50, 59.94, 60</td><td class="a">DNxHR HQ, SQ, LB</td></tr>
+</table>
+<p>The DNxHD number is the data rate in Mbit/s, so it grows with the frame rate while the quality of each frame stays the same. At 50 and 60 fps the processor and the drive work twice as hard as at 25: <span class="ui">Tracks possible</span> takes it into account.</p>
+<ul>
+  <li><b>Drop-frame timecode.</b> At 29.97 and 59.94 the ATEM tells in its timecode whether it is drop-frame, and the recorder follows: the files, the WAV, the Resolve project and the edit files are drop-frame too. A drop-frame timecode is written with a semicolon before the frames, <code>01:00:00;00</code>.</li>
+  <li><b>50, 59.94 and 60 fps.</b> The frames of the timecode count from 0 to 49 at 50 fps, from 0 to 59 at 59.94 and 60. At these rates the ATEM 2 M/E Constellation HD sends its timecode on every other frame: the recorder numbers the frame in between, so every frame has its own timecode.</li>
+  <li><b>Interlaced.</b> 1080i is recorded as interlaced, upper field first, and the Resolve project is set to interlaced.</li>
+</ul>
+
+<h2 id="trasporto">6.4 Transport</h2>
+<ul>
+  <li><b>The timecode display</b>. <span class="ui">TC FROM SIGNAL · 25 fps</span> means the timecode comes from the ATEM, at 25 frames per second. <i>DF</i> after the rate means drop-frame. On the right, the state: READY, RECORDING.</li>
+  <li><span class="ui">REC</span> starts recording.</li>
+  <li><span class="ui">STOP</span> stops it. <b>Hold it for one second</b>, so that it cannot be pressed by mistake.</li>
+  <li><span class="ui">PROJECT</span> builds the Resolve project of the last recording again. If Resolve is closed it is opened.</li>
+  <li><span class="ui">START</span>, <span class="ui">DURATION</span> and <span class="ui">TIME LEFT</span>: the timecode of REC, how long it has been recording, and how long the drive still holds at the current rate.</li>
+</ul>
+
+<h2 id="risorse">6.5 Resources and System</h2>
+<table>
+  <tr><th>Meter</th><th>What it shows</th></tr>
+  <tr><td>Disk write rate</td><td class="a">MB/s that the tracks write, all together.</td></tr>
+  <tr><td>Space used</td><td class="a">On the destination drive, during the recording.</td></tr>
+  <tr><td>Disk load</td><td class="a">The write rate against the speed measured on that drive, with the margin. <span class="ui">measure again</span> repeats the measurement.</td></tr>
+  <tr><td>CPU load</td><td class="a">The encoding load against the encoding test of the system check, with the margin.</td></tr>
+  <tr><td>Tracks possible</td><td class="a">How many tracks this machine can record now, and what sets the limit: inputs, aux outputs, processor or drive.</td></tr>
+  <tr><td>Status</td><td class="a">One line that sums it up: ready, or what to look at, such as <i>LESS THAN 2 HOURS</i> of drive left.</td></tr>
+  <tr><td>System</td><td class="a">Processor, graphics card and memory in the last minute.</td></tr>
+</table>
+
+<h2 id="strumenti">6.6 Toolbar</h2>
+<figure><img src="img/m-strumenti.png" alt="Toolbar"><figcaption>Figure 3 – The toolbar.</figcaption></figure>
+<ul>
+  <li><b>Setup</b>: a saved configuration, settings and tracks together, recalled by name. <span class="ui">Save</span> updates the chosen setup, <span class="ui">Save as…</span> creates a new one, <span class="ui">Delete</span> removes it.</li>
+  <li><span class="ui">HyperDeck clips…</span>: adds the clips of HyperDecks to the Resolve project, see <a href="#hyperdeck">chapter 11</a>.</li>
+  <li><span class="ui">Help</span>: opens this manual. <span class="k">F1</span> does the same.</li>
+  <li><span class="ui">Test report…</span>: the beta test report, see <a href="#rapporto">chapter 13</a>.</li>
+  <li><span class="ui">Height</span> S, M, L: the height of the tracks.</li>
+  <li><span class="ui">View</span>: the timeline shows the full time left on the drive, only what has been recorded, or the last ten minutes.</li>
+  <li><span class="ui">Thumbnails</span>: turns the thumbnails on and off. They refresh in turn, never at the expense of recording.</li>
+  <li>The marker field, the colors and the <span class="ui">MARKER</span> button, see <a href="#marker">chapter 8</a>.</li>
+</ul>
+
+<h2 id="tracce">6.7 Tracks</h2>
+<figure><img src="img/m-traccia.png" alt="A track" style="width:62%"><figcaption>Figure 4 – A track.</figcaption></figure>
+<p>The recorder opens with no tracks. Under the list, choose a free input and press <span class="ui">+ Add track</span>, or <span class="ui">Add all inputs</span> for every DeckLink input of the computer with one button: the inputs in the input map come first, in aux order, then the others in input order. Before that, <span class="ui">Map inputs…</span> next to them makes the input map (<a href="#mappa">5.2</a>). The limit is the number shown by <span class="ui">Tracks possible</span>.</p>
+<ul>
+  <li><span class="ui">×</span> on the track number removes the track.</li>
+  <li><b>The name</b> is the file name. It comes from the name of the source on the aux, read from the ATEM. Type over it to change it, before REC. <span class="ui">PGM</span> next to it marks a track that records a program output of the ATEM.</li>
+  <li><b>The line below</b>: input, connector, format arriving, and the aux with its source (<i>AUX 1 ← Camera 1</i>), or <i>not in the input map</i>. A format different from the ATEM appears in red, such as <i>1080p50, not 1080p25: this input stays empty</i>.</li>
+  <li><b>The timecode</b> the input receives, and <span class="ui">TC FROM SIGNAL</span> when it comes from the ATEM.</li>
+  <li><span class="ui">delay</span>: how many frames late this input arrives, subtracted from the timecode of its files. <span class="ui">meas.</span> marks it for the Measure button.</li>
+  <li><b>Levels</b> in peak dBFS on the ATEM mixer scale: green up to −20, yellow up to −9, then red.</li>
+  <li><span class="ui">R</span> arms the track: only armed tracks are recorded.</li>
+</ul>
+
+<h2 id="timeline">6.8 Timeline</h2>
+<ul>
+  <li><span class="k">Alt</span> + mouse wheel: horizontal zoom around the playhead, or around the mouse pointer if nothing has been recorded yet.</li>
+  <li><span class="k">Shift</span> + mouse wheel: scrolls the timeline.</li>
+  <li>Double-click on the ruler, or <span class="k">Ctrl</span>+<span class="k">Z</span>: back to the full view.</li>
+  <li>The bar at the bottom: drag to scroll, click to jump to a point, double-click for the full view.</li>
+</ul>
+
+<h1 id="registrare">7 Recording, step by step</h1>
+<ol>
+  <li><b>Off air, once</b>: cabling and input map (<a href="#cablaggio">chapter 5</a>), and the delays if your inputs pass through converters (<a href="#ritardi">chapter 9</a>).</li>
+  <li><b>Set the ATEM to the format of the show.</b> The recorder follows it by itself: check the Format field (<a href="#formato">6.3</a>).</li>
+  <li><b>Recall the setup</b>, or set codec, audio, ATEM address and tracks, and save them with <span class="ui">Save as…</span>.</li>
+  <li><b>Choose the destination</b> with <span class="ui">Choose…</span> and give the recording a name, or leave it empty for date and time.</li>
+  <li><b>Check every track</b>: image in the thumbnail, <span class="ui">TC FROM SIGNAL</span>, audio levels, the right name, <span class="ui">R</span> armed.</li>
+  <li><b>Check the Resources panel</b>: margins on drive and processor, and enough time left for the whole show.</li>
+  <li><b>Press REC.</b> Before starting, the recorder checks the destination: a folder inside a synced cloud folder, a drive that refuses to write, Windows Update active, a restart pending. Problems appear in a window: <span class="ui">Cancel</span> to fix them, or <span class="ui">Record anyway</span>.</li>
+  <li><b>During the show</b>: add markers, watch the meters. The settings are locked.</li>
+  <li><b>Hold STOP for one second.</b> The files are closed and the edit files are written. With <i>Resolve project: yes</i>, the project is built (<a href="#resolve">chapter 10</a>).</li>
+</ol>
+<div class="nota"><p>A recording interrupted by a crash or a power cut is repaired automatically the next time the recorder opens.</p></div>
+
+<h2 id="cartella">7.1 What you find in the recording folder</h2>
+<table>
+  <tr><th>File</th><th>Content</th></tr>
+  <tr><td>&lt;track name&gt;.mov</td><td class="a">The video of the track, DNxHD or DNxHR, with the ATEM timecode.</td></tr>
+  <tr><td>&lt;track name&gt;.wav</td><td class="a">The SDI audio of the track, Broadcast WAV with the same timecode.</td></tr>
+  <tr><td>&lt;track name&gt;.csv</td><td class="a">One line per frame: timecode, whether it came from the signal, timing and outcome. It proves the recording is complete.</td></tr>
+  <tr><td>atem.jsonl</td><td class="a">The log of the ATEM: cuts, transitions, sources on the aux outputs.</td></tr>
+  <tr><td>marker.csv</td><td class="a">The markers, with timecode, color, duration and text.</td></tr>
+  <tr><td>porte.json</td><td class="a">The input map in use when the recording was made.</td></tr>
+  <tr><td>rapporto.txt</td><td class="a">A summary per track: frames received, written, filled, black and dropped, timecode jumps.</td></tr>
+  <tr><td>Edit - ATEM cuts.fcpxml</td><td class="a">The live edit as FCPXML, for DaVinci Resolve and other programs that read it.</td></tr>
+  <tr><td>Edit - ATEM cuts - Premiere.xml</td><td class="a">The live edit for Premiere Pro.</td></tr>
+  <tr><td>Edit - ATEM cuts.edl</td><td class="a">The live edit as CMX 3600 EDL.</td></tr>
+  <tr><td>Marker.edl</td><td class="a">The markers as EDL, to import into any timeline.</td></tr>
+  <tr><td>mtsrec - &lt;name&gt;.drp</td><td class="a">The Resolve project, exported, ready to import on another computer.</td></tr>
+  <tr><td>progetto.json</td><td class="a">How the project build went.</td></tr>
+</table>
+
+<h1 id="marker">8 Markers</h1>
+<p>A marker is placed on the timecode of the files at the moment you press, and lands on the Resolve timeline with its text and color. Markers can be added only while recording.</p>
+<ul>
+  <li>The <span class="ui">MARKER</span> button, or <span class="k">M</span> on the keyboard.</li>
+  <li>Type the text in the marker field and press <span class="k">Enter</span>.</li>
+  <li>Choose the color with the squares next to the field.</li>
+</ul>
+<p>The last markers appear at the end of the toolbar, and as small flags on the timeline.</p>
+
+<h2 id="marker-rete">8.1 Markers from the network: Companion and Stream Deck</h2>
+<p>The recorder listens on port 8811 of every network interface. A marker is a simple HTTP GET request, which Bitfocus Companion (Generic HTTP module), a browser or <code>curl</code> can send:</p>
+<pre>http://&lt;recorder computer address&gt;:8811/marker?testo=Applause&amp;colore=red&amp;durata=25</pre>
+<table>
+  <tr><th>Parameter</th><th>Meaning</th></tr>
+  <tr><td>testo</td><td class="a">The text of the marker. Optional.</td></tr>
+  <tr><td>colore</td><td class="a">The color: blue, cyan, green, yellow, red, pink, purple, fuchsia, rose, lavender, sky, mint, lemon, sand, cocoa, cream (the sixteen marker colors of Resolve). Optional.</td></tr>
+  <tr><td>durata</td><td class="a">The duration in frames. Optional, 1 if omitted.</td></tr>
+</table>
+<p>The answer gives the marker number and its timecode. Outside a recording the answer is an error and no marker is added. The first time a request arrives from another computer, Windows Firewall may ask whether to allow the recorder on the network.</p>
+
+<h1 id="ritardi">9 Input delays</h1>
+<p>Converters, routers and some cards add frames of delay. If an input arrives late, its picture no longer matches its timecode, and in the multicam clip that angle is out of sync. The recorder corrects it: the <span class="ui">delay</span> of a track, in frames, is subtracted from the timecode of its files.</p>
+<p>You can type the delay, or measure it:</p>
+<ol>
+  <li>Tick <span class="ui">meas.</span> on the tracks to measure.</li>
+  <li>Press <span class="ui">Measure</span> in Settings.</li>
+  <li>The recorder cuts between bars and black on the ATEM program and times when each input sees the change, against an SDI input that receives the ATEM timecode as reference. The result appears on each track.</li>
+</ol>
+<div class="attenzione"><p><b>Measure writes to the ATEM program: off air only.</b> It needs the ATEM address in Settings, and cannot run while recording. The state of the ATEM is saved before the measurement.</p></div>
+
+<h1 id="resolve">10 The Resolve project</h1>
+<p>With <i>Resolve project: yes</i>, at STOP the recorder builds a project in DaVinci Resolve Studio:</p>
+<ul>
+  <li>a <b>multicam clip</b> of all the tracks, synced by timecode, with the angles named after the sources</li>
+  <li>a <b>timeline with the live edit</b>: the same cuts as the ATEM program, on the same frames, and the MIX dissolves with their duration. The other ATEM transition types are not reproduced as such: check them on the timeline</li>
+  <li>the <b>markers</b> with their text, color and duration</li>
+  <li>the project settings matching the recording: 1920×1080 or 3840×2160, the frame rate of the recording, drop-frame timecode at 29.97 and 59.94 when the ATEM uses it, interlaced for 1080i</li>
+</ul>
+<p>The project is called <i>mtsrec - &lt;recording name&gt;</i> and is also exported as a <code>.drp</code> file in the recording folder.</p>
+<h2 id="resolve-requisiti">10.1 What Resolve needs</h2>
+<ul>
+  <li><b>DaVinci Resolve Studio</b>, installed on the same computer.</li>
+  <li>In Resolve: <b>Preferences › System › General › External scripting using</b> set to <b>Local</b>.</li>
+</ul>
+<p>If Resolve is closed it is opened. Resolve starts its scripting server about thirty seconds after its window appears: the recorder waits for it and does not disturb it while it starts. A window shows the progress, and if the project cannot be built it says why and closes by itself after a minute.</p>
+<p>The <span class="ui">PROJECT</span> button builds the project again, at any time, from the last recording.</p>
+
+<h1 id="hyperdeck">11 HyperDeck clips</h1>
+<p>HyperDecks that recorded the same show can join the Resolve project as extra angles, cut by the ATEM like the others. Their clips must carry the ATEM timecode, so the HyperDecks must record from the ATEM over SDI.</p>
+<ol>
+  <li>Copy the clips from the HyperDeck media into a folder, also one subfolder per deck.</li>
+  <li>Press <span class="ui">HyperDeck clips…</span>. <span class="ui">Recording</span> is the last recording; <span class="ui">Change…</span> picks another.</li>
+  <li><span class="ui">Choose…</span> the clip folder. The list shows each clip, its timecode and whether it overlaps the recording.</li>
+  <li><span class="ui">Build project with these clips</span>.</li>
+</ol>
+
+<h1 id="uhd">12 UHD 2160p (experimental)</h1>
+<p>The recorder records UHD when the ATEM works in 2160p, at any of the eight progressive frame rates of <a href="#formato">6.3</a>, in DNxHR HQ, SQ or LB. UHD needs:</p>
+<ul>
+  <li>a 4K ATEM working in 2160p</li>
+  <li>inputs that capture UHD: 12G-SDI or HDMI 2.0. 3G cards such as the DeckLink Duo 2 cannot receive it, and their tracks say so</li>
+  <li>about four times the processor and the drive of HD: at 25 fps on a 36-thread workstation, four UHD tracks with a 30% margin, against 21 in HD. At 50 and 60 fps, half of that</li>
+</ul>
+<p>The encoding test of the system check measures DNxHR only if the machine has an input that captures UHD.</p>
+<div class="nota"><p>UHD has been recorded and turned into a Resolve project, but never yet with a 4K ATEM. If you have one, your test is the most wanted.</p></div>
+
+<h1 id="rapporto">13 Test report</h1>
+<p>After each test press <span class="ui">Test report…</span>. The button lights up after STOP.</p>
+<ul>
+  <li>You see everything that is inside before anything is created.</li>
+  <li>Write a few notes: switcher model, cards, cabling, what you tested, what went wrong.</li>
+  <li><span class="ui">Create report and email it</span> saves a small zip, about 10 KB, opens its folder and prepares an email to the developer. Attach the zip and send. If no mail program opens, send it from your webmail with the subject shown on screen.</li>
+</ul>
+<p>The report contains the system check, the settings, the input map, the versions of Desktop Video, Resolve and WebView2, the last five recordings (frames written and dropped per track, timecode, processor load, cuts, markers and the Resolve project) and the last lines of the session logs, with every warning and error. It contains no video, no IP addresses, no computer or user names, no file paths, no recording or source names. A random ID, chosen once per machine, tells the reports apart. The program never sends anything by itself.</p>
+
+<h1 id="problemi">14 Troubleshooting</h1>
+<table>
+  <tr><th>What happens</th><th>What to do</th></tr>
+  <tr><td class="a">"The recorder cannot start: port 8811 is already in use"</td><td class="a">Another Multicam Timecode Sync Recorder is already open: use that one, or quit it.</td></tr>
+  <tr><td class="a">The recorder opens in the web browser</td><td class="a">WebView2 is missing: install it from the Software needed window, or keep using the browser, which works the same.</td></tr>
+  <tr><td class="a">No inputs, or the Software needed window asks for Desktop Video</td><td class="a">Install Desktop Video 16 or later and restart the computer.</td></tr>
+  <tr><td class="a">A track has no <i>TC FROM SIGNAL</i></td><td class="a">Its input is not receiving the ATEM timecode: it must come from an ATEM output over SDI.</td></tr>
+  <tr><td class="a">A track says <i>this input stays empty</i></td><td class="a">Its source sends a different format from the ATEM. Set the camera or the device to the format of the ATEM: the recorder never converts.</td></tr>
+  <tr><td class="a">Format says <i>ATEM format not recordable</i></td><td class="a">The ATEM works in 720p, 8K or SD. Set it to one of the formats of <a href="#formato">6.3</a>.</td></tr>
+  <tr><td class="a">Format says <i>waiting for the ATEM or a signal</i></td><td class="a">Check the ATEM address in Settings and the network, or the cables to the inputs.</td></tr>
+  <tr><td class="a">A track says the input does not capture UHD</td><td class="a">That input is 3G-SDI: use a 12G-SDI or HDMI 2.0 input, or record in HD.</td></tr>
+  <tr><td class="a">Dropped frames in the summary at STOP</td><td class="a">Fewer tracks, a lighter codec, or a faster drive. Compare with <i>Tracks possible</i> and the margins in Resources.</td></tr>
+  <tr><td class="a">The Resolve project is not built</td><td class="a">Check that Resolve Studio is installed and that <i>External scripting using</i> is <i>Local</i>. Then press <span class="ui">PROJECT</span>. The FCPXML, Premiere XML and EDL are written anyway.</td></tr>
+  <tr><td class="a">An angle is out of sync in the multicam</td><td class="a">That input has a delay: measure it with <span class="ui">Measure</span> or type it on the track, then record again.</td></tr>
+  <tr><td class="a">Markers from Companion do not arrive</td><td class="a">They are accepted only while recording. Check the address, port 8811 and Windows Firewall.</td></tr>
+  <tr><td class="a">Help does not open this manual</td><td class="a">No program on the computer opens PDF files: install a PDF reader, or open <i>Multicam Timecode Sync Recorder User Manual.pdf</i> from the program folder in Microsoft Edge.</td></tr>
+</table>
+<p>Every session writes what the recorder reports, warnings and errors included, to a log in <code>%USERPROFILE%\mtsrec\logs</code>. The test report includes the last lines. For anything else, send a test report with your notes: a failed test is the most useful one.</p>
+
+<h1 id="riferimento">15 Reference</h1>
+<h2 id="tasti">15.1 Keyboard and mouse</h2>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><span class="k">F1</span></td><td class="a">Opens this manual.</td></tr>
+  <tr><td><span class="k">M</span></td><td class="a">Adds a marker.</td></tr>
+  <tr><td><span class="k">Enter</span> in the marker field</td><td class="a">Adds a marker with that text.</td></tr>
+  <tr><td>STOP held for one second</td><td class="a">Stops recording.</td></tr>
+  <tr><td><span class="k">Alt</span> + wheel</td><td class="a">Zooms the timeline.</td></tr>
+  <tr><td><span class="k">Shift</span> + wheel</td><td class="a">Scrolls the timeline.</td></tr>
+  <tr><td><span class="k">Ctrl</span>+<span class="k">Z</span>, double-click on the ruler</td><td class="a">Full view of the timeline.</td></tr>
+</table>
+<h2 id="file">15.2 Where the program keeps its files</h2>
+<table>
+  <tr><th>Folder</th><th>Content</th></tr>
+  <tr><td><code>%LOCALAPPDATA%\Programs\mtsrec</code></td><td class="a">The program, this manual, the licenses, the scripts and the Python that runs them.</td></tr>
+  <tr><td><code>%USERPROFILE%\mtsrec</code></td><td class="a">Settings, saved setups in <code>setup</code>, the input map <code>porte.json</code>, the result of the system check, the test reports in <code>test reports</code>, the session logs in <code>logs</code> (the last ten). Kept when the program is removed.</td></tr>
+</table>
+<h2 id="licenze">15.3 Licenses</h2>
+<p>Multicam Timecode Sync Recorder is free of charge. It uses FFmpeg under the LGPL, Python and the Microsoft WebView2 SDK, each under its own license. The full texts are in the <code>licenses</code> folder of the program and in the Start menu.</p>
+
+</body>
+</html>

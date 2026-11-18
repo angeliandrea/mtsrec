@@ -1,0 +1,1820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multicam Timecode Sync Recorder</title>
+<style>
+:root {
+  --fondo:#1c1c20; --corsia:#202025; --corsia2:#1d1d22; --pannello:#26262c; --testata:#2d2d34; --campo:#18181c;
+  --linea:#111114; --linea2:#38383f; --testo:#cfcfd6; --chiaro:#ececf1; --tenue:#8c8c96; --scuro:#5f5f69;
+  --arancio:#e8892c; --ambra:#f3a644; --rosso:#e0393e; --verde:#3daf68; --giallo:#e2b93b; --blu:#3f6fa3; --viola:#7d5fb3;
+  --mono:"Cascadia Mono", Consolas, ui-monospace, monospace;
+  --testate:500px;
+  color-scheme:dark;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; background:var(--fondo); color:var(--testo); font:12px/1.35 "Segoe UI", system-ui, sans-serif; }
+body { min-width:1240px; user-select:none; }            /* 1280 meno la barra di scorrimento */
+.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.tenue { color:var(--tenue); }
+button, select, input { font:inherit; color:var(--testo); }
+
+/* ---------------------------------------------------------------- barra del titolo */
+.titolo { height:30px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:0 12px; background:#141417; border-bottom:1px solid var(--linea); }
+.marchio { font-weight:600; color:var(--chiaro); letter-spacing:.02em; display:flex; align-items:center; gap:10px; }
+.marchio b { color:var(--rosso); margin-right:5px; }
+.progetto { color:var(--tenue); }
+.progetto b { color:var(--chiaro); font-weight:600; }
+.destra { display:flex; justify-content:flex-end; align-items:center; gap:12px; }
+.spia { display:flex; align-items:center; gap:5px; color:var(--tenue); font-size:11px; white-space:nowrap; }
+.spia i { width:6px; height:6px; border-radius:50%; background:#55555e; }
+.spia.si i { background:var(--verde); } .spia.attento i { background:var(--giallo); } .spia.male i { background:var(--rosso); }
+.collega { background:none; border:1px solid var(--linea2); border-radius:3px; padding:0 8px; height:20px; font-size:11px; color:var(--tenue); cursor:pointer; }
+.collega:hover { color:var(--chiaro); border-color:#4a4a54; }
+.collega:disabled { opacity:.4; cursor:default; }
+
+/* ---------------------------------------------------------------- pannelli in alto */
+.alto { display:grid; grid-template-columns: 1fr 450px 340px 300px; gap:1px; background:var(--linea); border-bottom:1px solid var(--linea); }
+.pannello { background:var(--pannello); min-width:0; display:flex; flex-direction:column; }
+.pannello > h2 { margin:0; height:24px; display:flex; align-items:center; gap:8px; padding:0 10px; background:var(--testata);
+                 border-bottom:1px solid var(--linea); font-size:11px; font-weight:600; color:var(--chiaro); letter-spacing:.02em; }
+.pannello > h2 .lucchetto { display:none; color:var(--ambra); font-weight:400; }
+.registrando .pannello > h2 .lucchetto { display:inline; }
+.corpo { padding:10px 12px; flex:1; }
+
+/* ispettore delle impostazioni */
+.ispettore { display:grid; grid-template-columns:repeat(2, 104px minmax(0,1fr)); gap:6px 10px; align-items:center; }
+.ispettore label { color:var(--tenue); text-align:right; white-space:nowrap; }
+select, input[type=text] { background:var(--campo); border:1px solid var(--linea2); border-radius:3px; padding:3px 7px; height:24px; width:100%; min-width:0; }
+select:focus, input:focus { outline:none; border-color:var(--arancio); }
+select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
+.fisso { height:24px; display:flex; align-items:center; padding:0 7px; color:#a9a9b2; border:1px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fisso em { font-style:normal; color:var(--scuro); margin-left:6px; }
+.con-tasto { display:flex; gap:5px; min-width:0; }
+.con-tasto button { flex:none; }
+
+/* trasporto */
+.trasporto { display:grid; grid-template-columns:1fr auto; gap:10px 10px; align-items:center; }
+.display { background:#0c0c0e; border:1px solid #050506; border-radius:3px; box-shadow:inset 0 1px 6px rgba(0,0,0,.8); padding:6px 12px 7px; min-width:0; }
+.display .eti { font-size:9.5px; letter-spacing:.12em; color:var(--scuro); font-weight:700; display:flex; justify-content:space-between; white-space:nowrap; gap:4px; }
+/* la scritta del timecode non va mai a capo e non allarga il riquadro: se non sta, si accorcia coi puntini (9.80) */
+.display .eti span:first-child { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.display .eti span:last-child { flex:none; }
+.display .eti span:last-child { color:var(--tenue); }
+.display .tc { font-family:var(--mono); font-size:35px; line-height:1.05; color:var(--ambra); letter-spacing:.02em; text-shadow:0 0 12px rgba(243,166,68,.25); }
+.registrando .display .eti span:last-child { color:var(--rosso); }
+.tasti { display:flex; gap:4px; }   /* PROJECT usciva dal pannello anche a 1680 (17 novembre 2026, 9.80) */
+.tasto { width:52px; height:46px; border-radius:4px; border:1px solid #0d0d10; background:linear-gradient(#3a3a42,#2c2c33);
+         box-shadow:inset 0 1px 0 rgba(255,255,255,.07); cursor:pointer; position:relative; overflow:hidden; display:grid; place-items:center; }
+.tasto:active { background:linear-gradient(#2c2c33,#34343b); }
+.tasto .ic { width:16px; height:16px; }
+.tasto .sotto { position:absolute; bottom:3px; left:0; right:0; text-align:center; font-size:9px; letter-spacing:.1em; color:var(--tenue); font-weight:700; }
+.tasto .ic.rec { border-radius:50%; background:#7b2a2d; }
+.tasto .ic.stop { background:#9a9aa3; border-radius:1px; width:13px; height:13px; }
+.tasto .ic.prj { width:18px; height:13px; background:linear-gradient(#9a9aa3 0 3px, transparent 3px 5px, #9a9aa3 5px 8px, transparent 8px 10px, #9a9aa3 10px 13px);
+                 clip-path:polygon(0 0,70% 0,70% 23%,100% 23%,100% 62%,40% 62%,40% 100%,0 100%); }
+.tasto.da-fare { border-color:#7a2a2d; box-shadow:0 0 0 1px var(--rosso), inset 0 1px 0 rgba(255,255,255,.07); }
+.tasto.da-fare .sotto { color:#ff9a9d; }
+.registrando #rec { background:linear-gradient(#5a1d20,#43161a); border-color:#2a0b0d; }
+.registrando #rec .ic.rec { background:var(--rosso); box-shadow:0 0 10px rgba(224,57,62,.8); }
+.registrando #rec .sotto { color:#ff9a9d; }
+#stop::after { content:""; position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--ambra); }
+#stop.tieni::after { width:100%; transition:width 1s linear; }
+.tasto:disabled { cursor:default; opacity:.45; }
+.tempi { grid-column:span 2; display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--linea); border:1px solid var(--linea); border-radius:3px; overflow:hidden; }
+.tempi div { background:#202025; padding:4px 8px; }
+.tempi .eti { font-size:9.5px; letter-spacing:.1em; color:var(--scuro); font-weight:700; }
+.tempi .num { font-size:14px; color:var(--chiaro); }
+
+/* risorse: misuratori a segmenti */
+.misure { display:grid; grid-template-columns:118px 1fr 92px; gap:7px 8px; align-items:center; }
+.misure .eti { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.misure .val { font-family:var(--mono); text-align:right; color:var(--chiaro); white-space:nowrap; }
+.segmenti { display:grid; grid-template-columns:repeat(24,1fr); gap:2px; height:9px; }
+.segmenti i { background:#141417; border-radius:1px; }
+.segmenti i.v { background:var(--verde); } .segmenti i.g { background:var(--giallo); } .segmenti i.r { background:var(--rosso); } .segmenti i.c { background:#3f8fb8; }
+.misure .nota { grid-column:2 / span 2; margin-top:-4px; font-size:10.5px; color:var(--scuro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.misure .nota a { color:var(--ambra); cursor:pointer; }
+.stato { margin-top:10px; display:flex; align-items:center; gap:8px; padding:5px 9px; border-radius:3px; background:#1a1a1e; border:1px solid var(--linea2); min-width:0; }
+.stato i { width:10px; height:10px; border-radius:50%; flex:none; }
+.stato.verde i { background:var(--verde); box-shadow:0 0 8px var(--verde); } .stato.giallo i { background:var(--giallo); box-shadow:0 0 8px var(--giallo); } .stato.rosso i { background:var(--rosso); box-shadow:0 0 8px var(--rosso); }
+.stato b { color:var(--chiaro); letter-spacing:.06em; font-size:11px; white-space:nowrap; }
+.stato small { margin-left:auto; color:var(--tenue); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+
+/* ---------------------------------------------------------------- barra degli strumenti */
+.strumenti { height:36px; display:flex; align-items:center; gap:14px; padding:0 10px; background:var(--testata); border-bottom:1px solid var(--linea); }
+.gruppo { display:flex; align-items:center; gap:6px; }
+.gruppo > span { color:var(--tenue); font-size:11px; white-space:nowrap; }
+.segmentato { display:flex; border:1px solid var(--linea); border-radius:3px; overflow:hidden; }
+.segmentato button { white-space:nowrap; background:#2a2a30; border:0; border-right:1px solid var(--linea); padding:3px 9px; cursor:pointer; font-size:11px; color:var(--tenue); }
+.segmentato button:last-child { border-right:0; }
+.segmentato button.si { background:#45454e; color:var(--chiaro); }
+.separa { width:1px; height:20px; background:var(--linea2); }
+.marker-testo { width:220px !important; }
+.colori { display:flex; gap:3px; }
+.colori button { width:16px; height:16px; border-radius:2px; border:1px solid rgba(0,0,0,.6); cursor:pointer; padding:0; }
+.colori button.si { outline:2px solid var(--chiaro); outline-offset:1px; }
+.tasto-marker { height:24px; padding:0 14px; border-radius:3px; border:1px solid #0d0d10; background:linear-gradient(#3a3a42,#2c2c33); cursor:pointer; font-weight:700; font-size:11px; letter-spacing:.06em; display:flex; align-items:center; gap:6px; }
+.tasto-marker i { width:9px; height:11px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
+.tasto-marker:disabled { opacity:.4; cursor:default; }
+.ultimi { display:flex; gap:6px; margin-left:auto; overflow:hidden; }
+.ultimo { display:flex; align-items:center; gap:5px; padding:1px 7px; border-radius:2px; background:#232328; border:1px solid var(--linea); white-space:nowrap; font-size:11px; }
+.ultimo i { width:7px; height:9px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
+
+/* ---------------------------------------------------------------- righello e tracce */
+.riga { display:grid; grid-template-columns:var(--testate) 1fr; }
+.righello { position:sticky; top:0; z-index:5; height:30px; background:#252529; border-bottom:1px solid var(--linea); }
+.righello .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; gap:10px; padding:0 10px; color:var(--tenue); font-size:11px; }
+.scala { position:relative; overflow:hidden; }
+.tacca { position:absolute; bottom:0; width:1px; background:#55555e; height:8px; }
+.tacca.piccola { height:4px; background:#45454c; }
+.tacca span { position:absolute; left:4px; bottom:7px; font:10.5px var(--mono); color:var(--tenue); white-space:nowrap; }
+.bandierina { position:absolute; top:3px; width:9px; height:11px; margin-left:-4px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
+.testina-alto { position:absolute; bottom:0; width:13px; height:12px; margin-left:-6px; background:#a9a9b2; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%); }
+.registrando .testina-alto { background:var(--rosso); }
+
+.traccia { border-bottom:1px solid var(--linea); height:var(--alt); }
+.testa { position:relative; background:var(--pannello); border-right:1px solid var(--linea); display:grid;
+         grid-template-columns:5px 26px var(--antw) 1fr 54px; align-items:center; gap:0; min-width:0; }
+.traccia:nth-child(even) .testa { background:#29292f; }
+.colore-traccia { align-self:stretch; }
+.numero { text-align:center; font:11px var(--mono); color:var(--scuro); }
+.anteprima { position:relative; width:var(--antw); aspect-ratio:16/9; background:#000; border:1px solid #000; outline:1px solid #3a3a42; }
+.anteprima canvas { display:block; width:100%; height:100%; }
+.anteprima .vuota { position:absolute; inset:0; display:none; place-items:center; text-align:center; font-size:9.5px; font-weight:700; letter-spacing:.08em; color:#ff8e91;
+                    background:repeating-linear-gradient(45deg,#0b0b0d 0 6px,#141417 6px 12px); padding:0 4px; }
+.senza .anteprima .vuota { display:grid; }
+.info { padding:0 10px; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.nome { display:flex; align-items:center; gap:2px; white-space:nowrap; min-width:0; }
+.nome input { flex:0 1 230px; min-width:60px; height:20px; padding:0 4px; background:transparent; border:1px solid transparent; border-radius:2px;
+              font-size:13px; color:var(--chiaro); font-weight:600; user-select:text; }
+.nome input:hover:not(:disabled) { border-color:var(--linea2); background:var(--campo); }
+.nome input:focus { border-color:var(--arancio); background:var(--campo); }
+.nome input:disabled { color:var(--chiaro); border-color:transparent; }
+.nome small { color:var(--scuro); }
+.tally { margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.08em; padding:1px 6px; border-radius:2px; }
+.tally.pgm { border:1px solid #5d4a86; color:#b49be0; }
+.via { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.via b { color:#b8b8c0; font-weight:600; }
+.via .male { color:#ff8e91; }
+.tcriga { display:flex; align-items:center; gap:7px; white-space:nowrap; }
+.tcriga .num { font-size:12.5px; color:var(--chiaro); }
+.origine { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; border:1px solid; line-height:14px; }
+.origine.segnale { color:#86c6d4; border-color:#244b55; } .origine.stimato { color:#ffd866; border-color:#6b520e; } .origine.nero { color:#ff8e91; border-color:#6e2226; }
+.riga-conti { display:flex; align-items:center; gap:8px; min-width:0; }
+.riga-conti .conti { flex:1; min-width:0; }
+.rit { flex:none; display:flex; align-items:center; gap:4px; font-size:10px; color:var(--tenue); }
+.rit input[type=number] { width:32px; height:16px; padding:0 3px; font-size:10.5px; font-family:var(--mono); }
+.rit label { display:flex; align-items:center; gap:2px; cursor:pointer; }
+.rit input[type=checkbox] { margin:0; }
+.rit .esito.ok { color:#86c6d4; } .rit .esito.male { color:#ff8e91; }
+.conti { color:var(--scuro); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.conti b { color:var(--tenue); font-family:var(--mono); font-weight:400; }
+.conti b.male { color:#ff8e91; }
+.lati { display:flex; align-items:center; justify-content:center; gap:6px; height:100%; padding:6px 0; }
+.arma { width:20px; height:20px; border-radius:3px; border:1px solid #0d0d10; background:#36363d; font-size:10px; font-weight:800; color:var(--tenue); cursor:pointer; padding:0; }
+.arma.si { color:#ff8e91; box-shadow:inset 0 0 0 1px #8a2a2e; }
+.arma:disabled { cursor:default; }
+.registrando .arma.si { background:var(--rosso); color:#fff; box-shadow:none; }
+/* livelli in dBFS di picco, come i misuratori del mixer Fairlight dell'ATEM (manuale Constellation, pag. 59):
+   da 0 a −20 metà altezza, sotto si stringe fino a −60; verde fino a −20, giallo fino a −9, poi rosso */
+.vu { display:flex; gap:2px; height:100%; max-height:64px; }
+.vu i { width:5px; background:#121215; position:relative; overflow:hidden; }
+.vu i::after { content:""; position:absolute; inset:0; background:linear-gradient(to top,var(--verde) 0 50%,var(--giallo) 50% 77.5%,var(--rosso) 77.5%); clip-path:inset(var(--v,100%) 0 0 0); }
+.vu i b { position:absolute; left:0; right:0; height:2px; bottom:var(--p,-4px); z-index:1; background:var(--verde); }
+.vu i b.g { background:var(--giallo); } .vu i b.r { background:var(--rosso); }
+
+.corsia { position:relative; overflow:hidden; background:var(--corsia); }
+.traccia:nth-child(even) .corsia { background:var(--corsia2); }
+.clip { position:absolute; top:4px; bottom:4px; border-radius:3px; overflow:hidden; border:1px solid rgba(0,0,0,.55); background:var(--tinta); display:none; }
+.clip .testo { position:absolute; top:0; left:0; right:0; height:15px; padding:0 6px; font-size:10.5px; color:#fff; background:rgba(0,0,0,.28); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:15px; }
+.clip .film { position:absolute; top:15px; left:0; right:0; bottom:14px; background-repeat:repeat-x; background-size:auto 100%; opacity:.9; }
+.clip .forma { position:absolute; left:0; right:0; bottom:0; height:14px; background-color:rgba(0,0,0,.35); }
+.clip .forma canvas { display:block; width:100%; height:100%; }
+.alt-s .clip .film { display:none; } .alt-s .clip .forma { top:15px; height:auto; }
+.linea-marker { position:absolute; top:0; bottom:0; width:1px; opacity:.55; }
+.testina { position:absolute; top:0; bottom:0; width:1px; background:#a9a9b2; }
+.registrando .testina { background:var(--rosso); box-shadow:0 0 4px rgba(224,57,62,.6); }
+.esclusa .testa > *:not(.lati) { opacity:.35; }
+.esclusa .clip { display:none !important; }
+
+/* le tracce scelte con Add track (17 novembre): × per toglierle, la barra sotto per aggiungerle */
+.numero { position:relative; height:100%; display:grid; place-items:center; }
+/* il × si vede sempre (Andrea, 17 novembre: «non vedo la possibilità di togliere le tracce»), più acceso sotto il mouse */
+.togli { position:absolute; top:4px; left:50%; transform:translateX(-50%); width:20px; height:18px; padding:0; border-radius:3px; border:1px solid #0d0d10; background:#36363d; color:#b8b8c0; font-size:14px; line-height:1; cursor:pointer; }
+.testa:hover .togli { border-color:#5a5a64; }
+.togli:hover { color:#fff; background:#8a2a2e; border-color:#8a2a2e; }
+.registrando .togli { display:none !important; }
+.aggiungi { display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--pannello); border-bottom:1px solid var(--linea); }
+.aggiungi select { width:auto; min-width:280px; max-width:520px; }
+.aggiungi .nota-agg { color:var(--tenue); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aggiungi .nota-agg.male { color:#ff8e91; }
+.vuoto-tracce { padding:18px 12px; color:var(--tenue); font-size:12px; background:var(--corsia); border-bottom:1px solid var(--linea); }
+.registrando .aggiungi { display:none; }
+#setup { width:auto; min-width:150px; max-width:240px; }
+
+.alt-s { --alt:64px; --antw:96px; } .alt-m { --alt:86px; --antw:132px; } .alt-l { --alt:112px; --antw:176px; }
+.alt-s .conti { display:none; }
+
+/* monitor più stretti, fino a 1280: si stringono trasporto e risorse, non le impostazioni */
+@media (max-width:1500px) {
+  .alto { grid-template-columns:1fr 410px 320px; }
+  .ispettore { grid-template-columns:repeat(2, 88px minmax(0,1fr)); }
+  /* il pannello Sistema scende sotto, in una striscia sola */
+  .alto > .pannello:nth-child(4) { grid-column:1 / -1; flex-direction:row; }
+  .alto > .pannello:nth-child(4) > h2 { height:auto; border-bottom:0; border-right:1px solid var(--linea); }
+  .alto .sistema { flex-direction:row; gap:24px; padding:7px 12px; }
+  .alto .voce { flex:1; grid-template-columns:auto 1fr auto; align-items:center; }
+  .alto .voce .segmenti, .alto .voce canvas { grid-column:auto; }
+  .alto .voce .val { order:3; } .alto .voce canvas { order:4; grid-column:2 / span 2; height:14px; } .alto .voce .segmenti { order:2; }
+  .fisso em, .destinazione em { display:none; }
+  .ispettore label { font-size:11px; }
+  .display .tc { font-size:31px; }
+  .display .eti { letter-spacing:.04em; }   /* «TC FROM SIGNAL · 29.97 fps DF» andava a capo a 1280 (9.80) */
+  .tasti { gap:4px; } .tasto { width:50px; }            /* a 1280 il terzo tasto, PROJECT, usciva dal pannello */
+  .misure { grid-template-columns:104px 1fr 88px; }
+  .marker-testo { width:150px !important; }
+  .strumenti .gruppo > span { display:none; }
+  .strumenti { gap:10px; }
+}
+/* sistema: processore, scheda video, memoria */
+.sistema { display:flex; flex-direction:column; gap:9px; }
+.voce { display:grid; grid-template-columns:1fr auto; gap:3px 8px; align-items:end; }
+.voce .eti { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.voce .modello { color:var(--scuro); font-size:10.5px; margin-left:4px; }
+.voce .val { font-family:var(--mono); color:var(--chiaro); font-size:15px; line-height:1; white-space:nowrap; }
+.voce .val small { font-size:10.5px; color:var(--tenue); }
+.voce .segmenti { grid-column:span 2; }
+.voce canvas { grid-column:span 2; width:100%; height:20px; display:block; background:#141417; border-radius:2px; }
+/* destinazione e selettore */
+.ispettore .destinazione { grid-column:2 / -1; display:flex; align-items:center; gap:8px; height:26px; padding:0 4px 0 8px; text-align:left;
+  background:var(--campo); border:1px solid var(--linea2); border-radius:3px; cursor:pointer; min-width:0; }
+.destinazione:hover { border-color:var(--arancio); }
+.destinazione:disabled { cursor:default; border-color:#2a2a30; color:#77777f; }
+.destinazione #dest-percorso { font-family:var(--mono); color:var(--chiaro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.destinazione em { font-style:normal; color:var(--tenue); white-space:nowrap; margin-left:auto; font-size:11px; }
+.destinazione b { font-weight:600; font-size:11px; padding:2px 9px; border-radius:2px; background:#3a3a42; color:var(--chiaro); white-space:nowrap; }
+.icona-disco { width:16px; height:11px; border:1.5px solid #9a9aa3; border-radius:2px; position:relative; flex:none; }
+.icona-disco::after { content:""; position:absolute; right:2px; bottom:2px; width:3px; height:3px; border-radius:50%; background:var(--verde); }
+.icona-disco.esterno { border-color:#6fb3d6; } .icona-disco.rete { border-color:#b49be0; border-style:dashed; }
+.icona-cartella { width:15px; height:11px; background:#b8903f; border-radius:1px 2px 2px 2px; position:relative; flex:none; }
+.icona-cartella::before { content:""; position:absolute; left:0; top:-3px; width:7px; height:3px; background:#b8903f; border-radius:1px 1px 0 0; }
+.velo { position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.6); display:none; place-items:center; }
+.hd-riga { display:flex; align-items:center; gap:10px; margin:0 0 8px; }
+.hd-riga b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+.hd-eti { width:90px; color:var(--tenue, #8a8a90); }
+.hd-tab { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+.hd-tab th { text-align:left; font-weight:500; color:#8a8a90; padding:4px 6px; border-bottom:1px solid #2a2a2e; }
+.hd-tab td { padding:4px 6px; border-bottom:1px solid #222226; vertical-align:middle; }
+.hd-tab td.file { max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hd-tab tr.fuori td { opacity:.5; }
+.hd-tab select { width:100%; }
+#hd-elenco { max-height:52vh; overflow:auto; }
+.prq-voce { border:1px solid #2a2a2e; border-radius:4px; padding:8px 10px; margin:0 0 10px; }
+.prq-voce b { color:var(--chiaro); }
+.prq-voce .prq-essenziale { color:#ff8e91; font-size:10px; font-weight:700; letter-spacing:.06em; margin-left:6px; }
+.prq-voce p { margin:4px 0 8px !important; }
+.prq-voce .prq-tasti { display:flex; gap:8px; }
+#rp-apri.invito { border-color:var(--ambra); color:var(--ambra); }
+#rp-anteprima { max-height:36vh; overflow:auto; background:#141417; border:1px solid #2a2a2e; padding:8px 10px; margin-top:8px;
+                font:11px/1.45 "Cascadia Mono", Consolas, monospace; white-space:pre-wrap; color:#c8c8ce; }
+#rp-nota { width:100%; min-height:64px; box-sizing:border-box; background:#141417; color:var(--chiaro); border:1px solid #2a2a2e;
+           padding:6px 8px; resize:vertical; }
+#rp-fatto b { color:var(--chiaro); font-weight:500; }
+.versione { font-weight:400; color:var(--tenue); font-size:11px; margin-left:6px; }
+.velo.aperto { display:grid; }
+.finestra { width:min(920px, 92vw); background:var(--pannello); border:1px solid #0c0c0e; border-radius:5px; box-shadow:0 20px 60px rgba(0,0,0,.7); overflow:hidden; }
+.finestra > h2 { margin:0; height:32px; display:flex; align-items:center; gap:10px; padding:0 14px; background:var(--testata); border-bottom:1px solid var(--linea); font-size:12px; color:var(--chiaro); font-weight:600; }
+.finestra > h2 .tenue { font-weight:400; font-size:11px; }
+.sel-corpo { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--linea); }
+.sel-sinistra, .sel-destra { background:var(--pannello); padding:12px 14px; min-width:0; }
+.sel-sinistra { max-height:440px; overflow:auto; }
+.sel-titoletto { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--scuro); font-weight:700; margin-bottom:6px; }
+.disco { width:100%; display:grid; grid-template-columns:22px 1fr auto; grid-template-rows:auto auto auto; gap:3px 8px; align-items:center; text-align:left;
+  padding:7px 9px; margin-bottom:5px; background:#202025; border:1px solid var(--linea); border-radius:3px; cursor:pointer; }
+.disco:hover { border-color:#4a4a54; }
+.disco.si { border-color:var(--arancio); background:#2a2318; }
+.disco .icona-disco { grid-row:span 2; }
+.d-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.d-nome b { color:var(--chiaro); }
+.d-nome small { color:var(--scuro); margin-left:6px; }
+.d-spazio { grid-column:2 / span 2; height:5px; background:#141417; border-radius:2px; overflow:hidden; }
+.d-spazio i { display:block; height:100%; background:#3f8fb8; }
+.d-liberi { grid-column:3; grid-row:1; color:var(--tenue); font-size:11px; }
+.d-nota { grid-column:2 / span 2; font-size:10.5px; color:#d9b36a; }
+.d-nota.ok { color:#7fcf9c; }
+.sel-riga { display:flex; gap:6px; margin-top:8px; }
+.sel-riga input { flex:1; user-select:text; }
+.piccolo { height:24px; padding:0 12px; border-radius:3px; border:1px solid #0d0d10; background:linear-gradient(#3a3a42,#2c2c33); cursor:pointer; font-size:11.5px; white-space:nowrap; }
+.piccolo.primario { background:linear-gradient(#d07a26,#b0641a); color:#fff; font-weight:600; }
+.piccolo.pericolo { background:linear-gradient(#a8292d,#861f23); color:#fff; font-weight:600; }
+.piccolo:disabled { opacity:.45; cursor:default; }
+.briciole { font-family:var(--mono); font-size:11.5px; color:var(--tenue); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.briciole a { color:var(--chiaro); cursor:pointer; } .briciole a:hover { color:var(--ambra); }
+.cartelle { height:170px; overflow:auto; background:#1a1a1e; border:1px solid var(--linea); border-radius:3px; padding:4px; }
+.cartella { width:100%; display:flex; align-items:center; gap:8px; padding:5px 8px; background:none; border:0; border-radius:2px; cursor:pointer; text-align:left; }
+.cartella:hover { background:#2c2c33; }
+.vuota-cartella { color:var(--scuro); padding:8px; font-size:11px; }
+.finale { margin-top:10px; font-size:11px; color:var(--tenue); }
+.finale b { color:var(--ambra); font-weight:400; word-break:break-all; }
+.sel-errore { margin-top:8px; font-size:11px; color:#ff8e91; min-height:15px; }
+.sel-piede { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; background:var(--testata); border-top:1px solid var(--linea); }
+.ctl-corpo { padding:12px 14px; max-height:420px; overflow:auto; }
+.ctl-corpo p { margin:0 0 10px; color:var(--chiaro); }
+.ctl-voce { display:flex; gap:8px; align-items:flex-start; padding:4px 0; border-bottom:1px solid #2e2e35; }
+.ctl-voce i { width:9px; height:9px; border-radius:50%; margin-top:3px; flex:none; }
+.ctl-voce.verde i { background:var(--verde); } .ctl-voce.giallo i { background:var(--giallo); } .ctl-voce.rosso i { background:var(--rosso); }
+.avviso { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:30; max-width:70vw; padding:9px 16px; border-radius:4px;
+          background:#3a1518; border:1px solid #8a2a2e; color:#ffd0d2; box-shadow:0 10px 30px rgba(0,0,0,.6); display:none; }
+.avviso.aperto { display:block; }
+/* la barra di scorrimento della timeline, incollata in fondo allo schermo */
+.scorrimento { position:sticky; bottom:0; z-index:5; height:20px; background:#252529; border-top:1px solid var(--linea); }
+.scorrimento .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; padding:0 10px; color:var(--tenue); font-size:10.5px; }
+.binario { position:relative; margin:4px 8px; background:#16161a; border-radius:6px; cursor:pointer; }
+.binario .registrato { position:absolute; top:0; bottom:0; left:0; background:rgba(125,95,179,.45); border-radius:6px; display:none; }
+.cursore { position:absolute; top:0; bottom:0; min-width:16px; background:rgba(150,150,162,.45); border:1px solid #77777f; border-radius:6px; cursor:grab; }
+.cursore:hover { background:rgba(170,170,182,.55); }
+.cursore.trascina { cursor:grabbing; background:rgba(190,190,200,.6); }
+.piede { display:flex; gap:18px; padding:8px 12px 20px; color:var(--scuro); font-size:11px; flex-wrap:wrap; }
+.spento { position:fixed; inset:0; z-index:40; background:var(--fondo); display:none; place-items:center; color:var(--tenue); font-size:14px; }
+.spento.aperto { display:grid; }
+</style>
+</head>
+<body>
+
+<div class="titolo">
+  <div class="marchio"><span><b>●</b>Multicam Timecode Sync Recorder<span class="versione num" id="versione"></span></span><button class="collega" id="vai-controllo" title="System check">System check</button></div>
+  <div class="progetto">Recording <b id="nome-reg">—</b></div>
+  <div class="destra">
+    <span class="spia" id="sp-atem"><i></i>ATEM</span><span class="spia" id="sp-hd"><i></i>HyperDeck</span><span class="spia" id="sp-mappa"><i></i>Input map</span><span class="spia" id="sp-porta"><i></i>:8811</span>
+    <span class="num tenue" id="orologio"></span>
+    <button class="collega" id="esci" title="Quits the recorder">Quit</button>
+  </div>
+</div>
+
+<section class="alto">
+  <div class="pannello">
+    <h2>Settings <span class="lucchetto">🔒 locked while recording</span></h2>
+    <div class="corpo ispettore">
+      <label>Destination</label><button class="destinazione" id="dest" title="Choose drive and folder"><span class="icona-disco" id="dest-icona"></span><span id="dest-percorso">choose where to record</span><em id="dest-info"></em><b>Choose…</b></button>
+      <label>Format</label><div class="fisso" id="modo" title="The recorder records what arrives: no conversion, no scaling. The format comes from the ATEM, or from the signal when there is no ATEM.">--<em></em></div>
+      <label>Codec</label><select id="mbit"></select>
+      <label>SDI audio</label><select id="audio"><option value="2">2 channels</option><option value="8">8 channels</option><option value="16">16 channels</option></select>
+      <label>Expected duration</label><select id="limite"><option value="0">until STOP</option><option value="2">2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="6">6 hours</option></select>
+      <label>Broadcast WAV</label><div class="fisso">yes<em>always alongside the MOV files</em></div>
+      <label>Resolve project</label><select id="resolve"><option value="true">yes, when recording ends</option><option value="false">no</option></select>
+      <label>ATEM</label><div class="con-tasto"><input type="text" id="atem" placeholder="none"><button class="piccolo" id="leggi-nomi" title="Reads the names of the sources on the aux outputs from the ATEM again">Names</button></div>
+      <label>HyperDeck</label><input type="text" id="hyperdeck" placeholder="none">
+      <label>Delays</label><div class="con-tasto"><div class="fisso" id="rit-info" title="Each input's delay is set on its track, in frames">tick “meas.” on the tracks</div><button class="piccolo" id="misura-ritardi" title="Cuts between bars and black on the ATEM program to measure the delay of the ticked inputs: off air only">Measure</button></div>
+      <label>Input map</label><div class="con-tasto"><div class="fisso" id="map-info" title="Which ATEM aux output is cabled to each DeckLink input">none</div><button class="piccolo" id="mappa-ingressi" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map</button></div>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <h2>Transport</h2>
+    <div class="corpo trasporto">
+      <div class="display"><div class="eti"><span id="eti-tc">TIMECODE · 25 fps</span><span id="stato-rec">READY</span></div><div class="tc" id="tc">--:--:--:--</div></div>
+      <div class="tasti">
+        <button class="tasto" id="rec" title="Starts recording"><span class="ic rec"></span><span class="sotto">REC</span></button>
+        <button class="tasto" id="stop" title="Hold for one second"><span class="ic stop"></span><span class="sotto">STOP</span></button>
+        <button class="tasto" id="progetto" title="Builds the Resolve project of the last recording: opens Resolve if it is closed" disabled><span class="ic prj"></span><span class="sotto">PROJECT</span></button>
+      </div>
+      <div class="tempi">
+        <div><div class="eti">START</div><div class="num" id="partenza">--:--:--:--</div></div>
+        <div><div class="eti">DURATION</div><div class="num" id="durata">00:00:00:00</div></div>
+        <div><div class="eti">TIME LEFT</div><div class="num" id="autonomia">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <h2>Resources</h2>
+    <div class="corpo">
+      <div class="misure">
+        <span class="eti">Disk write rate</span><div class="segmenti" id="s-flusso"></div><span class="val" id="flusso">--</span>
+        <span class="eti" id="eti-spazio">Space used</span><div class="segmenti" id="s-spazio"></div><span class="val" id="spazio">--</span>
+        <span class="eti">Disk load</span><div class="segmenti" id="s-disco"></div><span class="val" id="m-disco">--</span>
+        <span class="nota" id="m-disco-nota"></span>
+        <span class="eti">CPU load</span><div class="segmenti" id="s-cpu"></div><span class="val" id="m-cpu">--</span>
+        <span class="nota" id="m-cpu-nota"></span>
+        <span class="eti">Tracks possible</span><div class="segmenti" id="s-max"></div><span class="val" id="m-max">--</span>
+        <span class="nota" id="m-max-nota"></span>
+      </div>
+      <div class="stato giallo" id="stato"><i></i><b id="stato-testo">CONNECTING…</b><small id="stato-nota"></small></div>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <h2>System <span class="tenue" style="font-weight:400">last minute</span></h2>
+    <div class="corpo sistema">
+      <div class="voce"><span class="eti">CPU<span class="modello" id="mod-cpu"></span></span><span class="val" id="v-cpu"></span><div class="segmenti" id="s-cpu-uso"></div><canvas id="g-cpu" width="240" height="20"></canvas></div>
+      <div class="voce"><span class="eti">GPU<span class="modello" id="mod-gpu"></span></span><span class="val" id="v-gpu"></span><div class="segmenti" id="s-gpu-uso"></div><canvas id="g-gpu" width="240" height="20"></canvas></div>
+      <div class="voce"><span class="eti">Memory<span class="modello" id="mod-ram"></span></span><span class="val" id="v-ram"></span><div class="segmenti" id="s-ram-uso"></div><canvas id="g-ram" width="240" height="20"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<div class="strumenti">
+  <div class="gruppo"><span>Setup</span><select id="setup" title="Saved recording setups: settings and tracks"></select>
+    <button class="piccolo" id="setup-salva" title="Save the current settings and tracks into this setup">Save</button>
+    <button class="piccolo" id="setup-come" title="Save the current settings and tracks as a new setup">Save as…</button>
+    <button class="piccolo" id="setup-cancella" title="Delete this setup">Delete</button></div>
+  <div class="gruppo"><button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project">HyperDeck clips…</button></div>
+  <div class="gruppo"><button class="piccolo" id="aiuto" title="Opens the user manual (PDF). F1 does the same">Help</button></div>
+  <div class="gruppo"><button class="piccolo" id="rp-apri" title="Creates the beta test report: you see what is inside, then it goes by email to the developer">Test report…</button></div>
+  <span class="separa"></span>
+  <div class="gruppo"><span>Height</span><div class="segmentato" id="altezza"><button data-v="s">S</button><button data-v="m" class="si">M</button><button data-v="l">L</button></div></div>
+  <div class="gruppo"><span>View</span><div class="segmentato" id="vista"><button data-v="autonomia" class="si">Full time left</button><button data-v="registrato">Recorded</button><button data-v="dieci">Last 10 min</button></div></div>
+  <div class="gruppo"><div class="segmentato"><button id="finestrelle" class="si">Thumbnails</button></div></div>
+  <span class="separa"></span>
+  <div class="gruppo">
+    <input type="text" class="marker-testo" id="mk-testo" placeholder="Marker text, Enter to add">
+    <div class="colori" id="mk-colori"></div>
+    <button class="tasto-marker" id="mk" title="Marker on the file timecode: also with the M key"><i id="mk-ic"></i>MARKER</button>
+    <span class="num tenue" id="mk-conta"></span>
+  </div>
+  <div class="ultimi" id="mk-ultimi"></div>
+</div>
+
+<div class="riga righello">
+  <div class="angolo"><span id="conta-tracce"></span><span class="num" id="flusso-piccolo"></span></div>
+  <div class="scala" id="scala"></div>
+</div>
+<div id="tracce" class="alt-m"></div>
+<div class="aggiungi" id="aggiungi">
+  <select id="agg-porta" title="A free input of this machine"></select>
+  <button class="piccolo primario" id="agg">+ Add track</button>
+  <button class="piccolo" id="agg-tutte" title="Adds every free DeckLink input of this computer: first those the input map links to an ATEM aux, in aux order, then the others">Add all inputs</button>
+  <button class="piccolo" id="agg-mappa" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map inputs…</button>
+  <span class="nota-agg" id="agg-nota"></span>
+</div>
+<div class="riga scorrimento">
+  <div class="angolo num" id="zoom-info"></div>
+  <div class="binario" id="binario" title="Drag to scroll the timeline, click to jump to a point, double-click for the full view"><div class="registrato" id="barra-reg"></div><div class="cursore" id="cursore"></div></div>
+</div>
+
+<div class="piede">
+  <span>Tracks: + Add track under the list, up to what this machine handles; × on the track number removes it. R: the track is recorded. Setup saves settings and tracks under a name.</span>
+  <span>The file name is the name of the source on the aux, read from the ATEM: type over it to change it, before REC.</span>
+  <span>Levels in peak dBFS on the ATEM mixer scale: green up to −20, yellow up to −9, then red. Audio is recorded as is, with no processing.</span>
+  <span>Thumbnails refresh in turn, never at the expense of recording.</span>
+  <span>Markers: the button, Enter in the text field or M on the keyboard; from the console, Enter.</span>
+  <span>Alt + mouse wheel on the timeline: horizontal zoom around the playhead, or around the mouse pointer if nothing has been recorded yet. Shift + mouse wheel: scrolls the timeline. Double-click on the ruler or Ctrl+Z: back to the full view. The bar at the bottom scrolls the timeline.</span>
+</div>
+
+<div class="velo" id="sel">
+  <div class="finestra">
+    <h2><span id="sel-titolo">Choose the destination</span> <span class="tenue">drives currently seen by this machine</span></h2>
+    <div class="sel-corpo">
+      <div class="sel-sinistra">
+        <div class="sel-titoletto">Drives</div>
+        <div id="sel-dischi"></div>
+        <div class="sel-riga"><input type="text" id="sel-rete-nome" placeholder="\\server\folder"><button class="piccolo" id="sel-rete">Open network path</button></div>
+      </div>
+      <div class="sel-destra">
+        <div class="sel-titoletto">Folder</div>
+        <div class="briciole" id="sel-briciole"></div>
+        <div class="cartelle" id="sel-cartelle"></div>
+        <div class="sel-riga"><input type="text" id="sel-nuova-nome" placeholder="new folder here"><button class="piccolo" id="sel-nuova">Create</button></div>
+        <div id="sel-blocco-nome"><div class="sel-titoletto" style="margin-top:12px">Recording name</div>
+        <input type="text" id="sel-nome" placeholder="empty: name with date and time"></div>
+        <div class="finale"><span id="sel-finale-eti">Files will go to</span> <b class="num" id="sel-finale"></b></div>
+        <div class="sel-errore" id="sel-errore"></div>
+      </div>
+    </div>
+    <div class="sel-piede"><button class="piccolo" id="sel-annulla">Cancel</button><button class="piccolo primario" id="sel-ok">Record here</button></div>
+  </div>
+</div>
+
+<div class="velo" id="ctl">
+  <div class="finestra" style="width:min(680px,92vw)">
+    <h2><span id="ctl-titolo">Pre-REC checks</span> <span class="tenue">recording has not started</span></h2>
+    <div class="ctl-corpo"><p id="ctl-errore"></p><div id="ctl-voci"></div></div>
+    <div class="sel-piede"><button class="piccolo" id="ctl-annulla">Cancel</button><button class="piccolo pericolo" id="ctl-forza">Record anyway</button></div>
+  </div>
+</div>
+
+<div class="velo" id="hd">
+  <div class="finestra" style="width:min(980px,94vw)">
+    <h2>HyperDeck clips <span class="tenue">copied from the cards: they join the project as extra angles, cut by the ATEM</span></h2>
+    <div class="ctl-corpo">
+      <div class="hd-riga"><span class="hd-eti">Recording</span><b class="num" id="hd-reg">—</b><button class="piccolo" id="hd-reg-scegli">Change…</button></div>
+      <div class="hd-riga"><span class="hd-eti">Clip folder</span><b class="num" id="hd-cartella">—</b><button class="piccolo" id="hd-cartella-scegli">Choose…</button></div>
+      <p class="tenue" id="hd-nota">The HyperDecks must record from the ATEM over SDI, so their clips carry the ATEM timecode. Copy their clips from the cards into a folder, also one subfolder per deck, then choose it here.</p>
+      <div id="hd-elenco"></div>
+      <p class="sel-errore" id="hd-errore"></p>
+    </div>
+    <div class="sel-piede"><button class="piccolo" id="hd-chiudi">Cancel</button><button class="piccolo primario" id="hd-crea" disabled>Build project with these clips</button></div>
+  </div>
+</div>
+
+<div class="velo" id="rp">
+  <div class="finestra" style="width:min(880px,94vw)">
+    <h2>Test report <span class="tenue">you see everything that is inside, and you decide whether to send it</span></h2>
+    <div class="ctl-corpo" style="max-height:none">
+      <p class="tenue">A small zip of text files: the system check of this machine, the settings and the last five recordings, with frames written and dropped per track, timecode, CPU load, cuts, markers and the Resolve project. No video, no IP addresses, no computer or user names, no file paths, no recording or source names.</p>
+      <p style="margin-bottom:4px">Notes for the developer, optional: switcher model, cabling, what you tested, what went wrong.</p>
+      <textarea id="rp-nota" maxlength="1000" spellcheck="false"></textarea>
+      <div id="rp-anteprima"></div>
+      <p id="rp-fatto" style="margin:8px 0 0"></p>
+      <p class="sel-errore" id="rp-errore"></p>
+    </div>
+    <div class="sel-piede"><button class="piccolo" id="rp-chiudi">Close</button><button class="piccolo" id="rp-rileggi">Refresh preview</button><button class="piccolo primario" id="rp-crea">Create report and email it</button></div>
+  </div>
+</div>
+
+<div class="velo" id="prq">
+  <div class="finestra" style="width:min(640px,94vw)">
+    <h2>Software needed by the recorder <span class="tenue">not found on this computer</span></h2>
+    <div class="ctl-corpo" style="max-height:60vh">
+      <div id="prq-elenco"></div>
+      <p class="tenue">Download opens the official page in your web browser: install from there, restart the computer if the installer asks, then open the recorder again. Python, FFmpeg and the other components travel with the recorder and need nothing.</p>
+    </div>
+    <div class="sel-piede"><button class="piccolo" id="prq-dopo">Not now</button></div>
+  </div>
+</div>
+<div class="velo" id="beta">
+  <div class="finestra" style="width:min(640px,94vw)">
+    <h2>BETA VERSION — FOR TESTING ONLY <span class="tenue" id="beta-versione"></span></h2>
+    <div class="ctl-corpo" style="max-height:60vh">
+      <p><b>This is a test version, free of charge and provided as is, without any warranty.</b> Do not rely on it as the only recorder of a show you cannot repeat: always keep another recording running.</p>
+      <p>The author accepts no liability for lost recordings, damage to equipment or data, or any other loss arising from its use.</p>
+      <p>The program sends nothing by itself. A test report is created only when you ask for it, with the <b>Test report…</b> button: you see what is inside, and you decide whether to email it.</p>
+      <p class="tenue">ATEM, DeckLink, HyperDeck, DaVinci Resolve and Blackmagic Design are trademarks of Blackmagic Design Pty Ltd. This program is not affiliated with or endorsed by Blackmagic Design. Licenses of the included components are in the <span class="num">licenses</span> folder of the program.</p>
+    </div>
+    <div class="sel-piede"><button class="piccolo primario" id="beta-ok">I understand, continue</button></div>
+  </div>
+</div>
+
+<div class="velo" id="prj">
+  <div class="finestra" style="width:min(620px,92vw)">
+    <h2>Resolve project not built <span class="tenue">the recorded files are fine</span></h2>
+    <div class="ctl-corpo"><p id="prj-motivo"></p><p class="tenue">Build it again with the PROJECT button next to REC and STOP, now or later: if Resolve is closed it is opened automatically.</p></div>
+    <div class="sel-piede"><button class="piccolo" id="prj-chiudi">Later</button><button class="piccolo primario" id="prj-crea">Build project</button></div>
+  </div>
+</div>
+
+<div class="avviso" id="avviso"></div>
+<div class="spento" id="spento">Recorder closed. To open it again, start Multicam Timecode Sync Recorder from the Start menu.</div>
+
+<script>
+// ============================================================ dati: tutti dal registratore
+// /stato ogni 250 ms; il resto a richiesta. Niente qui è inventato: se un dato manca, la pagina lo dice.
+// La cadenza viene dal formato che il registratore ha letto dall'ATEM o dal segnale (formato.cpp, 9.79):
+// FPS è quella vera, per le durate; CAD.base i fotogrammi del timecode; col drop-frame a 29,97 e 59,94
+// l'etichetta salta 2 o 4 numeri a ogni minuto non multiplo di dieci, il conto dei fotogrammi no.
+let FPS = 25, CAD = { base:25, num:25, den:1, drop:false }, MODO = "1080p25";
+function cadenzaDi(modo) {
+  const m = /^(\d+)([pi])([\d.]+)$/.exec(String(modo || "")) || [0, "1080", "p", "25"];
+  const v = +m[3], ntsc = Math.abs(v - Math.round(v)) > 0.001;
+  const fps = m[2] === "i" ? v / 2 : v, base = Math.round(fps);
+  return { base, num: ntsc ? base * 1000 : base, den: ntsc ? 1001 : 1, drop: ntsc && base % 30 === 0, interlacciato: m[2] === "i", uhd: m[1] === "2160" };
+}
+function usaModo(modo, drop) {
+  if (!modo) return;
+  const c = cadenzaDi(modo);
+  if (drop !== undefined && c.den === 1001) c.drop = !!drop;
+  MODO = modo; CAD = c; FPS = c.num / c.den;
+}
+const $ = id => document.getElementById(id);
+// I codec di ogni formato col nome Avid, che è il flusso nominale in Mbit/s e cambia con la cadenza:
+// stessa qualità, nome diverso. In UHD il DNxHR HQ, SQ, LB (flusso misurato a 25p, cresce con la cadenza).
+const DNXHR = { "728": "DNxHR HQ", "481": "DNxHR SQ", "149": "DNxHR LB" };
+const DNXHD = { 24: [175, 115, 36], 25: [185, 120, 36], 30: [220, 145, 45], 50: [365, 240, 75], 60: [440, 290, 90] };
+const QUALITA = ["high", "medium", "low"];
+function codecDel(modo) {
+  const c = cadenzaDi(modo);
+  if (c.uhd) return [728, 481, 149];
+  const v = DNXHD[c.base].slice();
+  if (c.interlacciato) v.pop();                     // in 1080i il DNxHD 36 e il 45 non esistono
+  return v;
+}
+// lo stesso livello a 1080p25 o 2160p25: è quello che la prova del processore ha misurato
+function codecDiProva(modo, mbit) {
+  const i = Math.max(0, codecDel(modo).indexOf(+mbit));
+  return cadenzaDi(modo).uhd ? [728, 481, 149][i] : [185, 120, 36][Math.min(i, 2)];
+}
+const nomeCodec = m => DNXHR[String(m)] || ("DNxHD " + m);
+const enc = encodeURIComponent;
+// 24 ore di timecode, in fotogrammi
+const giornoTc = () => CAD.base * 86400 - (CAD.drop ? CAD.base / 15 * 1296 : 0);
+const tc = (f, fotogrammi = true) => {
+  const g = giornoTc();
+  f = ((Math.max(0, Math.floor(f)) % g) + g) % g;
+  if (CAD.drop) {
+    const D = CAD.base / 15, alMinuto = CAD.base * 60 - D, aiDieci = CAD.base * 600 - D * 9;
+    const d = Math.floor(f / aiDieci), m = f % aiDieci;
+    f += D * 9 * d + (m > D ? D * Math.floor((m - D) / alMinuto) : 0);
+  }
+  const s = Math.floor(f / CAD.base);
+  const p = [Math.floor(s/3600)%24, Math.floor(s/60)%60, s%60].map(x => String(x).padStart(2,"0"));
+  return p.join(":") + (fotogrammi ? (CAD.drop ? ";" : ":") + String(f % CAD.base).padStart(2,"0") : ""); };
+const daTc = s => { const p = String(s || "").split(/[:;.]/).map(Number);
+  if (p.length !== 4 || p.some(isNaN)) return null;
+  const D = CAD.drop ? CAD.base / 15 : 0, minuti = p[0] * 60 + p[1];
+  return ((p[0]*60 + p[1])*60 + p[2])*CAD.base + p[3] - D * (minuti - Math.floor(minuti / 10)); };
+const ore = s => !isFinite(s) ? "--" : Math.floor(s/3600) + " h " + String(Math.floor(s/60)%60).padStart(2,"0");
+const it = (x, d=1) => x.toLocaleString("en-US", { minimumFractionDigits:d, maximumFractionDigits:d });
+const html = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
+
+async function chiedi(url) {
+  const r = await fetch(url, { cache:"no-store" });
+  let j = {};
+  try { j = await r.json(); } catch (e) {}
+  if (!r.ok && !j.errore) j.errore = "the recorder returned HTTP " + r.status;
+  return j;
+}
+let tAvviso = null;
+function avviso(testo) {
+  $("avviso").textContent = testo; $("avviso").classList.add("aperto");
+  clearTimeout(tAvviso); tAvviso = setTimeout(() => $("avviso").classList.remove("aperto"), 9000);
+}
+$("avviso").onclick = () => $("avviso").classList.remove("aperto");
+
+// I sedici colori dei marker di Resolve; nella barra gli otto più usati, coi nomi che il registratore capisce.
+const TINTE_MARKER = { Blue:"#3d7bf5", Cyan:"#3cc4d8", Green:"#2fb171", Yellow:"#e8b931", Red:"#e5484d", Pink:"#ff7eb6", Purple:"#9b6cf0",
+  Fuchsia:"#d946ef", Rose:"#f4a3b4", Lavender:"#b4a7f5", Sky:"#7cc7f5", Mint:"#8de0c0", Lemon:"#f2ee6b", Sand:"#c8a97e", Cocoa:"#8a5a3c", Cream:"#f1e6c8" };
+const COLORI = { blu:"Blue", ciano:"Cyan", verde:"Green", giallo:"Yellow", rosso:"Red", rosa:"Pink", viola:"Purple", crema:"Cream" };
+// chiavi in italiano: vanno al registratore come colore= (anche Companion le usa); all'utente si mostra il nome inglese
+// il tipo di disco e la fonte del marker arrivano in italiano dal registratore: qui solo le scritte
+const FONTI_MARKER = { pagina:"page", rete:"network" };
+const reteDisco = t => t === "rete" || t === "network";
+const rimovibile = t => t === "rimovibile" || t === "removable";
+
+let S = null;                 // l'ultimo /stato
+let A = null;                 // il controllo della macchina: modelli e prova di codifica
+let collegato = false;
+let righe = [], chiaveRighe = "";
+let vista = "autonomia", accese = true, colore = "blu";
+let durataFinale = 0, liberoAllaPartenza = 0, eraRegistra = false, attesaRec = false, ultimoProgetto = "";
+const leggi = (k, d) => { try { return localStorage.getItem("wir." + k) ?? d; } catch (e) { return d; } };
+const scrivi = (k, v) => { try { localStorage.setItem("wir." + k, v); } catch (e) {} };
+
+const imp = () => (S && S.impostazioni) || {};
+const inRegistrazione = () => !!S && S.fase !== "ferma";
+const registra = () => !!S && S.registra;
+const armate = () => righe.filter(r => r.armata && r.d && r.d.aperta);
+const flussoPerTraccia = () => { const m = +imp().mbit || 185, v = DNXHR[String(m)] ? m * FPS / 25 : m;
+  return v * 1e6 / 8 * 1.02 + (+imp().audio || 2) * 3 * 48000 * 2; };
+// a registrazione chiusa la durata la dicono i fotogrammi scritti, anche se la pagina è stata ricaricata
+const durataSecondi = () => registra() ? +S.secondi || 0
+  : Math.max(durataFinale, ...(S && S.tracce || []).map(t => t.scritti / FPS), 0);
+const partenzaFotogrammi = () => S && S.inizio ? daTc(S.inizio) : null;
+
+// misuratore a 24 segmenti: verde fino a 2/3, giallo fino a 7/8, poi rosso
+function segmenti(id, frazione, uno = false) {
+  const el = $(id);
+  if (!el.children.length) for (let k = 0; k < 24; k++) el.appendChild(document.createElement("i"));
+  const n = Math.round(Math.min(1, Math.max(0, frazione || 0)) * 24);
+  [...el.children].forEach((s, k) => s.className = k >= n ? "" : uno ? "c" : k < 16 ? "v" : k < 21 ? "g" : "r");
+}
+// la scala del misuratore dell'ATEM, letta dalle tacche della figura del manuale: dB → altezza da 0 a 1
+const SCALA_ATEM = [[-60, 0], [-50, .075], [-40, .15], [-30, .3], [-20, .5], [-15, .625], [-10, .75], [-5, .875], [0, 1]];
+function frazioneDb(db) {
+  if (!(db > -60)) return 0;
+  if (db >= 0) return 1;
+  const k = SCALA_ATEM.findIndex(([d]) => d >= db), [d0, f0] = SCALA_ATEM[k - 1], [d1, f1] = SCALA_ATEM[k];
+  return f0 + (db - d0) / (d1 - d0) * (f1 - f0);
+}
+const zonaDb = db => db >= -9 ? "r" : db >= -20 ? "g" : "";
+// la tacca del picco resta ferma due secondi, poi segue il livello
+function picco(r, k, db) {
+  const p = r.picchi[k], ora = performance.now();
+  if (!p.t || db >= p.db || ora - p.t > 2000) { p.db = db; p.t = ora; }
+  return p.db;
+}
+
+// ============================================================ righe: le tracce scelte con Add track
+// Dal 17 novembre (Andrea: «il programma si aprisse senza tracce e si potessero aggiungere con Add track fino a
+// raggiungere il limite calcolato») le righe non sono più tutte le porte della macchina ma la lista salvata nelle
+// impostazioni, «porta|porta=nome|-porta»: il nome scritto a mano dopo l'uguale, «-» se esclusa col tasto R.
+const leggiTracce = s => String(s || "").split("|").filter(Boolean).map(v => {
+  const armata = !v.startsWith("-"); if (!armata) v = v.slice(1);
+  const k = v.indexOf("=");
+  return { porta: k < 0 ? v : v.slice(0, k), nome: k < 0 ? "" : v.slice(k + 1), armata };
+});
+const scriviTracce = l => l.map(t => (t.armata ? "" : "-") + t.porta + (t.nome ? "=" + t.nome : "")).join("|");
+const listaTracce = () => leggiTracce(imp().tracce);
+async function salvaTracce(l) {
+  const s = scriviTracce(l);
+  if (S && S.impostazioni) S.impostazioni.tracce = s;   // subito in pagina, senza aspettare il prossimo /stato
+  aggiorna();
+  const j = await chiedi("/impostazioni?tracce=" + enc(s));
+  if (j.errore) avviso(j.errore);
+}
+// la lista di adesso letta dalle righe, coi nomi scritti e le R
+const traccePresenti = () => listaTracce().map(t => {
+  const r = righe.find(x => x.d && x.d.porta === t.porta);
+  return r ? { porta:t.porta, nome: r.toccato ? r.input.value.trim() : "", armata:r.armata } : t;
+});
+let mancanti = [];
+function costruisci() {
+  const box = $("tracce");
+  box.innerHTML = "";
+  const lista = listaTracce();
+  mancanti = lista.filter(t => !S.ingressi.some(d => d.porta === t.porta)).map(t => t.porta);
+  const presenti = lista.filter(t => S.ingressi.some(d => d.porta === t.porta));
+  if (!presenti.length) box.innerHTML = `<div class="vuoto-tracce">No tracks yet: add them with <b>+ Add track</b> below, or load a Setup.</div>`;
+  righe = presenti.map((tr, i) => {
+    const d = S.ingressi.find(x => x.porta === tr.porta);
+    const r = { n:d.n, d, livelli:[], toccato:!!tr.nome, picchi:[{}, {}] };
+    const el = document.createElement("div");
+    el.className = "riga traccia";
+    el.innerHTML = `
+      <div class="testa">
+        <div class="colore-traccia"></div>
+        <div class="numero">${i + 1}<button class="togli" title="Remove this track">×</button></div>
+        <div class="anteprima"><canvas width="192" height="108"></canvas><div class="vuota">NO SIGNAL</div></div>
+        <div class="info">
+          <div class="nome"><input type="text" spellcheck="false" title="File name: change it before REC"><small>.mov</small><span class="tally"></span></div>
+          <div class="via"></div>
+          <div class="tcriga"><span class="num tc-traccia"></span><span class="origine"></span></div>
+          <div class="riga-conti"><span class="rit" title="How many frames late this input arrives: subtracted from the timecode of its files">delay <input type="number" class="rit-n" min="0" max="60" step="1"> f
+            <label title="To be measured with the Measure button in Settings"><input type="checkbox" class="rit-m">meas.</label><span class="esito"></span></span><div class="conti"></div></div>
+        </div>
+        <div class="lati"><button class="arma" title="Record this track">R</button><div class="vu"><i><b></b></i><i><b></b></i></div></div>
+      </div>
+      <div class="corsia">
+        <div class="clip"><div class="testo"></div><div class="film"></div><div class="forma"><canvas height="28"></canvas></div></div>
+      </div>`;
+    r.el = el;
+    r.cv = el.querySelector(".anteprima canvas"); r.g = r.cv.getContext("2d");
+    r.g.fillStyle = "#000"; r.g.fillRect(0, 0, 192, 108);
+    r.input = el.querySelector(".nome input");
+    r.forma = el.querySelector(".forma canvas");
+    r.vu = [...el.querySelectorAll(".vu i")];
+    r.armata = tr.armata;
+    if (tr.nome) r.input.value = tr.nome;
+    r.input.oninput = () => { r.input.value = r.input.value.replace(/[\\/:*?"<>|=]/g, ""); r.toccato = r.input.value.trim() !== ""; };
+    // il nome scritto a mano resta nella lista, quindi anche nei setup
+    r.input.onblur = () => {
+      if (!r.input.value.trim()) { r.toccato = false; r.input.value = nomeBase(r.d); }
+      const prima = imp().tracce || "", dopo = scriviTracce(traccePresenti());
+      if (dopo !== prima) salvaTracce(traccePresenti());
+    };
+    el.querySelector(".togli").onclick = () => {
+      if (inRegistrazione()) return;
+      salvaTracce(traccePresenti().filter(t => t.porta !== d.porta));
+    };
+    r.ritN = el.querySelector(".rit-n");
+    r.ritM = el.querySelector(".rit-m");
+    r.ritM.checked = (leggi("misura-ritardi", "") || "").split("|").includes(d.porta);
+    r.ritM.onchange = () => scrivi("misura-ritardi", righe.filter(x => x.ritM.checked).map(x => x.d.porta).join("|"));
+    r.ritN.onchange = async () => {
+      const v = Math.max(0, Math.min(60, Math.round(+r.ritN.value || 0)));
+      r.ritN.value = v;
+      const j = await chiedi("/impostazioni?ritardo=" + enc(r.d.porta) + "&fotogrammi=" + v);
+      if (j.errore) avviso(j.errore);
+    };
+    const arma = el.querySelector(".arma");
+    arma.onclick = () => {
+      if (inRegistrazione() || !r.d.aperta) return;
+      r.armata = !r.armata;
+      salvaTracce(traccePresenti());
+    };
+    box.appendChild(el);
+    return r;
+  });
+}
+// Una volta sola, per chi aveva già il registratore: le R scelte prima, tenute nel browser, diventano la lista.
+// Dopo, una lista vuota resta vuota: è il programma che si apre senza tracce.
+function migraTracce() {
+  if (imp().tracce || leggi("tracce-migrate", "") || inRegistrazione()) return;
+  scrivi("tracce-migrate", "1");
+  const vecchie = leggi("armate", null);
+  if (vecchie === null) return;
+  const l = S.ingressi.filter(d => vecchie.split(",").includes(d.porta)).map(d => ({ porta:d.porta, nome:"", armata:true }));
+  if (l.length) salvaTracce(l);
+}
+
+// ============================================================ Add track: le porte libere, fino al limite
+function barraAggiungi() {
+  const sel = $("agg-porta"), lista = listaTracce();
+  const libere = S.ingressi.filter(d => d.aperta && !lista.some(t => t.porta === d.porta));
+  const etichetta = d => d.porta.replace(/^DeckLink\s+/i, "") + " · " + d.connettore + (d.aux > 0 ? " · AUX " + d.aux + (d.nome_sorgente ? " ← " + d.nome_sorgente : "") : " · not in the input map");
+  const chiave = libere.map(etichetta).join("|");
+  if (sel.dataset.chiave !== chiave) {
+    const prima = sel.value;
+    sel.innerHTML = libere.map(d => `<option value="${html(d.porta)}">${html(etichetta(d))}</option>`).join("") || `<option value="">no free inputs</option>`;
+    if (libere.some(d => d.porta === prima)) sel.value = prima;
+    sel.dataset.chiave = chiave;
+  }
+  const M = tracceMassime(flussoPerTraccia()), pieno = M.n != null && !M.almeno && lista.length >= M.n;
+  const bloccata = inRegistrazione() || !libere.length;
+  sel.disabled = bloccata;
+  $("agg").disabled = bloccata || pieno;
+  $("agg-tutte").disabled = bloccata || pieno;
+  const nota = $("agg-nota");
+  nota.className = "nota-agg" + (pieno ? " male" : "");
+  nota.textContent = (M.n == null ? lista.length + " tracks"
+      : lista.length + " of " + M.n + (M.almeno ? "+" : "") + " tracks this machine handles" + (M.chi ? " (limit: " + M.chi + ")" : "") + (pieno ? " · limit reached" : ""))
+    + (mancanti.length ? " · " + mancanti.length + " from the setup not on this machine: " + mancanti.join(", ") : "");
+}
+$("agg").onclick = () => {
+  const p = $("agg-porta").value;
+  if (!p || inRegistrazione()) return;
+  salvaTracce([...traccePresenti(), { porta:p, nome:"", armata:true }]);
+};
+$("agg-tutte").onclick = () => {
+  if (inRegistrazione()) return;
+  const l = traccePresenti(), M = tracceMassime(flussoPerTraccia());
+  const posto = M.n != null && !M.almeno ? Math.max(0, M.n - l.length) : Infinity;
+  // Tutti gli ingressi DeckLink del computer (Andrea, 17 novembre 2026): prima quelli che la mappa lega a un'aux,
+  // nell'ordine delle aux, poi gli altri nell'ordine delle schede. Il limite delle tracce possibili vale sempre.
+  const chiave = d => d.aux > 0 ? d.aux : 1000 + d.n;
+  const nuove = S.ingressi.filter(d => d.aperta && !l.some(t => t.porta === d.porta)).sort((a, b) => chiave(a) - chiave(b)).slice(0, posto);
+  salvaTracce([...l, ...nuove.map(d => ({ porta:d.porta, nome:"", armata:true }))]);
+};
+
+// ============================================================ Setup: impostazioni e tracce con un nome
+let elencoSetup = [];
+async function caricaElencoSetup() {
+  const j = await chiedi("/setup");
+  if (j.elenco) elencoSetup = j.elenco;
+  if (j.errore) avviso(j.errore);
+}
+function barraSetup() {
+  const sel = $("setup"), att = imp().setup || "";
+  const chiave = att + "#" + elencoSetup.join("|");
+  if (sel.dataset.chiave !== chiave && document.activeElement !== sel) {
+    sel.innerHTML = `<option value="">— no setup —</option>` + elencoSetup.map(n => `<option value="${html(n)}">${html(n)}</option>`).join("");
+    sel.value = elencoSetup.includes(att) ? att : "";
+    sel.dataset.chiave = chiave;
+  }
+  const b = inRegistrazione();
+  sel.disabled = b; $("setup-come").disabled = b;
+  $("setup-salva").disabled = b || !sel.value; $("setup-cancella").disabled = b || !sel.value;
+}
+async function dopoSetup(j) {
+  if (j.elenco) elencoSetup = j.elenco;
+  if (j.impostazioni && S) S.impostazioni = j.impostazioni;
+  $("setup").dataset.chiave = "";
+  if (j.errore) avviso(j.errore);
+  aggiorna();
+}
+$("setup").onchange = async () => {
+  const v = $("setup").value;
+  if (!v || inRegistrazione()) { $("setup").dataset.chiave = ""; return; }
+  dopoSetup(await chiedi("/setup?carica=" + enc(v)));
+};
+async function salvaSetup(nome) {
+  if (righe.some(r => document.activeElement === r.input)) document.activeElement.blur();
+  await salvaTracce(traccePresenti());
+  dopoSetup(await chiedi("/setup?salva=" + enc(nome)));
+  avviso("Setup “" + nome + "” saved: settings and " + listaTracce().length + " tracks");
+}
+$("setup-salva").onclick = () => { const v = $("setup").value; if (v && !inRegistrazione()) salvaSetup(v); };
+$("setup-come").onclick = () => {
+  if (inRegistrazione()) return;
+  const n = (prompt("Name of the new setup (e.g. Concert 8 cameras):", imp().setup || "") || "").trim();
+  if (!n) return;
+  if (elencoSetup.includes(n) && !confirm("Setup “" + n + "” already exists: replace it?")) return;
+  salvaSetup(n);
+};
+$("setup-cancella").onclick = async () => {
+  const v = $("setup").value;
+  if (!v || inRegistrazione() || !confirm("Delete setup “" + v + "”? The current settings and tracks stay as they are.")) return;
+  dopoSetup(await chiedi("/setup?cancella=" + enc(v)));
+};
+caricaElencoSetup();
+
+const nomeBase = d => (d.nome_sorgente || d.porta.replace(/^DeckLink\s+/i, "")).replace(/[\\/:*?"<>|]/g, "");
+// le uscite dei M/E dell'ATEM hanno numeri dal 10010 in su: in viola come il programma in Resolve
+const tinta = d => d.sorgente >= 10000 ? "var(--viola)" : "var(--blu)";
+
+// ============================================================ finestra di tempo mostrata nelle corsie
+function autonomiaSecondi() {
+  const n = armate().length;
+  if (!S || !S.disco.esiste || !n) return Infinity;
+  return S.disco.libero_gb * 1e9 / (flussoPerTraccia() * n);
+}
+// lo zoom con la rotellina: null è la vista scelta coi tasti; segui tiene la testina dentro mentre registra
+let zoom = null;
+function finestraAuto(d) {
+  if (vista === "registrato") return [0, Math.max(60, d * 1.06)];
+  if (vista === "dieci") { const b = Math.max(600, d + 30); return [b - 600, b]; }
+  const resta = autonomiaSecondi();
+  return [0, isFinite(resta) ? Math.max(60, (registra() ? d : 0) + resta) : Math.max(3600, d * 1.06)];
+}
+function finestra(d) {
+  if (!zoom) return finestraAuto(d);
+  if (zoom.segui && registra() && d > zoom.a + zoom.span * .9) zoom.a = d - zoom.span * .9;
+  return [zoom.a, zoom.a + zoom.span];
+}
+// la barra di scorrimento: tutto il tempo da 0 alla fine della vista dei tasti, il cursore è la finestra mostrata
+const totaleTempo = (d, b) => Math.max(finestraAuto(d)[1], d * 1.06, b, 1);
+const durataBreve = s => s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : Math.floor(s / 3600) + " h " + Math.round(s % 3600 / 60) + " min";
+function barraTempo(a, b, d) {
+  const T = totaleTempo(d, b), c = $("cursore"), reg = $("barra-reg");
+  c.style.left = a / T * 100 + "%"; c.style.width = (b - a) / T * 100 + "%";
+  reg.style.display = S.inizio && d > 0 ? "block" : "none"; reg.style.width = Math.min(100, d / T * 100) + "%";
+  $("zoom-info").textContent = zoom ? "zoom · " + durataBreve(b - a) + " in view · Ctrl+Z: all" : "full view";
+}
+function spostaVista(na) {
+  const d = durataSecondi(), [a, b] = finestra(d), span = b - a, T = totaleTempo(d, b);
+  na = Math.max(0, Math.min(na, T - span));
+  zoom = { a:na, span, segui:registra() && d >= na && d <= na + span };
+  aggiornaTracce();
+}
+function trascinaCursore(e) {
+  if (!S) return;
+  e.preventDefault(); e.stopPropagation();
+  const c = $("cursore"), w = $("binario").getBoundingClientRect().width, x0 = e.clientX;
+  const d = durataSecondi(), [a0, b0] = finestra(d), T = totaleTempo(d, b0);
+  try { c.setPointerCapture(e.pointerId); } catch {}
+  c.classList.add("trascina");
+  c.onpointermove = m => spostaVista(a0 + (m.clientX - x0) / w * T);
+  c.onpointerup = c.onpointercancel = () => { c.onpointermove = c.onpointerup = c.onpointercancel = null; c.classList.remove("trascina"); };
+}
+function cliccaBinario(e) {
+  if (!S || e.target.id === "cursore") return;
+  const r = $("binario").getBoundingClientRect(), d = durataSecondi(), [a, b] = finestra(d), T = totaleTempo(d, b);
+  spostaVista((e.clientX - r.left) / r.width * T - (b - a) / 2);
+}
+
+// sul righello o sulle corsie: Alt e rotellina ingrandiscono attorno alla testina come Resolve, attorno al mouse se
+// non c'è ancora niente di registrato; Maiuscolo e rotellina, o di lato sul touchpad, scorrono la timeline.
+// La rotellina da sola scorre la pagina in verticale, come sempre (Andrea, 31 ottobre)
+function rotellina(e) {
+  const zona = e.target.closest("#scala, .corsia");
+  if (!zona || !S) return;
+  if (!e.altKey && !e.shiftKey && Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  const d = durataSecondi(), [a, b] = finestra(d), span = b - a, [aa, bb] = finestraAuto(d);
+  const r = zona.getBoundingClientRect();
+  let f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  const riga = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? r.width : 1;
+  const dx = e.deltaX * riga, dy = e.deltaY * riga;
+  let na, ns;
+  if (!e.altKey) { ns = span; na = a + (dx || dy) / r.width * span; }
+  else {
+    // la testina resta dov'è sullo schermo; se è fuori vista la si porta dentro, vicino al bordo
+    const testina = S.inizio && d > 0, ft = testina ? Math.min(.9, Math.max(.1, (d - a) / span)) : f;
+    const t = testina ? d : a + f * span;
+    f = ft;
+    ns = Math.min(Math.max(span * Math.pow(1.0015, dy), 2), Math.max(bb - aa, d * 1.06, 60));
+    na = t - f * ns;
+  }
+  na = Math.max(0, Math.min(na, Math.max(bb, d * 1.06) - ns));
+  // tornati larghi come la vista dei tasti: si torna a quella
+  if (ns >= (bb - aa) * .999 && Math.abs(na - aa) < ns * .01) zoom = null;
+  else zoom = { a:na, span:ns, segui:registra() && d >= na && d <= na + ns };
+  aggiornaTracce();
+}
+
+function righello(a, b, d, base) {
+  const span = b - a, passi = [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+  const passo = passi.find(p => span / p <= 10) || 7200;
+  const pos = t => (t - a) / span * 100;
+  let h = "";
+  for (let t = Math.ceil(a / (passo/2)) * (passo/2); t <= b; t += passo/2) {
+    const grande = Math.abs(t / passo - Math.round(t / passo)) < 1e-6;
+    h += `<div class="tacca${grande ? "" : " piccola"}" style="left:${pos(t)}%">${grande && base !== null ? `<span>${tc(base + t*FPS, false)}</span>` : ""}</div>`;
+  }
+  markerNelTempo().forEach(m => { if (m.t >= a && m.t <= b) h += `<div class="bandierina" title="${html(m.testo)}" style="left:${pos(m.t)}%;background:${TINTE_MARKER[m.colore] || "#999"}"></div>`; });
+  if (S && S.inizio && d >= a && d <= b) h += `<div class="testina-alto" style="left:${pos(d)}%"></div>`;
+  $("scala").innerHTML = h;
+}
+function markerNelTempo() {
+  const p = partenzaFotogrammi();
+  if (p === null || !S.elenco_marker) return [];
+  return S.elenco_marker.map(m => ({ ...m, t:(m.tc - p) / FPS }));
+}
+
+// ============================================================ aggiornamento della pagina a ogni /stato
+function aggiorna() {
+  if (!S) return;
+  usaModo(S.formato && S.formato.modo || imp().modo, S.formato && S.formato.drop);
+  migraTracce();
+  const chiave = S.ingressi.map(d => d.porta).join("|") + "#" + (imp().tracce || "");
+  if (chiave !== chiaveRighe) { chiaveRighe = chiave; costruisci(); }
+  barraAggiungi();
+  barraSetup();
+  const rec = registra();
+  if (!rec && eraRegistra) $("rp-apri").classList.add("invito");   // finita una registrazione: il rapporto la include
+  $("rp-apri").disabled = rec;
+  if (S.versione) $("versione").textContent = S.versione;
+  if (rec && !eraRegistra) {
+    liberoAllaPartenza = S.disco.libero_gb; righe.forEach(r => r.livelli = []);
+    if (!storiaFatta && (+S.secondi || 0) > 2) caricaStoria();   // pagina aperta a registrazione in corso
+    storiaFatta = true;
+  }
+  if (!rec && !storiaFatta && S.inizio) { storiaFatta = true; caricaStoria(); }   // aperta dopo lo STOP
+  if (!rec && eraRegistra) durataFinale = +S.secondi || durataFinale;
+  if (rec) durataFinale = +S.secondi || 0;
+  eraRegistra = rec;
+
+  document.body.classList.toggle("registrando", inRegistrazione());
+  const bloccate = inRegistrazione();
+  document.querySelectorAll(".ispettore select, .ispettore input, .ispettore button").forEach(e => e.disabled = bloccate);
+  $("rec").disabled = bloccate; $("stop").disabled = S.fase !== "registra"; $("mk").disabled = !rec;
+  $("progetto").disabled = S.fase !== "ferma" || !S.cartella || S.progetto_stato === 1;
+  $("progetto").classList.toggle("da-fare", S.fase === "ferma" && S.progetto_stato === 3);
+  progettoNonCreato();
+  $("esci").disabled = bloccate; $("vai-controllo").disabled = bloccate;
+  $("stato-rec").textContent = { ferma:"READY", partenza:"STARTING…", registra:"● REC", fine:"CLOSING…" }[S.fase] || S.fase;
+  // dal segnale solo se almeno una porta lo legge davvero nel RP188; altrimenti è l'orologio del registratore
+  const daSegnale = S.ingressi.some(d => d.segnale && d.tc_dal_segnale);
+  $("eti-tc").textContent = (rec ? "FILE TC" : daSegnale ? "TC FROM SIGNAL" : "TC FROM CLOCK") + " · " +
+    (CAD.den === 1001 ? (CAD.num / CAD.den).toFixed(2) : CAD.base) + " fps" + (CAD.drop ? " DF" : "");
+  $("tc").textContent = S.timecode;
+
+  impostazioniInPagina();
+  infoRitardi();
+  infoMappa();
+  titolo();
+  aggiornaTracce();
+  aggiornaRisorse();
+  sistema();
+  mostraMarker();
+  esitoRec();
+}
+
+// i campi si riscrivono solo se non ci si sta scrivendo dentro
+function impostazioniInPagina() {
+  const i = imp();
+  const lista = codecDel(MODO), sel = $("mbit");
+  if (sel.dataset.modo !== MODO) {
+    sel.dataset.modo = MODO;
+    sel.innerHTML = lista.map((m, k) => `<option value="${m}">${nomeCodec(m)} (${QUALITA[k]})</option>`).join("");
+  }
+  const F = S && S.formato || {};
+  const fonte = F.fonte === "ATEM" ? "from the ATEM" : F.fonte === "signal" ? "from the signal" : "waiting for the ATEM or a signal";
+  $("modo").innerHTML = html(MODO + (CAD.drop ? " drop-frame" : "")) + `<em>${html(fonte)}</em>`;
+  $("modo").classList.toggle("male", F.atem_registrabile === false);
+  if (F.atem_registrabile === false) $("modo").innerHTML = `ATEM format not recordable<em>720p, 8K and SD are not recorded</em>`;
+  [["mbit", i.mbit], ["audio", i.audio], ["resolve", String(i.resolve)], ["atem", i.atem], ["hyperdeck", i.hyperdeck]].forEach(([id, v]) => {
+    const e = $(id);
+    if (document.activeElement !== e && v !== undefined && e.value !== String(v)) e.value = String(v);
+  });
+  $("limite").value = leggi("limite", "0");
+  const c = i.cartella || "";
+  // durante la registrazione la cartella vera; prima, quella che verrà
+  $("dest-percorso").textContent = inRegistrazione() && S.cartella ? S.cartella
+    : c ? unisci(c, i.nome || "<date and time>") : "choose where to record";
+  $("dest-info").textContent = S.disco.esiste ? it(S.disco.libero_gb, 0) + " GB free" : c ? "folder no longer exists" : "";
+  $("dest-icona").className = "icona-disco" + (c.startsWith("\\\\") ? " rete" : "");
+}
+
+function titolo() {
+  const i = imp();
+  const cartella = S.cartella && inRegistrazione() ? S.cartella.split("\\").pop() : "";
+  $("nome-reg").textContent = cartella || i.nome || "named by date and time at REC";
+  const spia = (id, classe, testo, tit) => { const e = $(id); e.className = "spia " + classe; e.lastChild.textContent = testo; e.title = tit || ""; };
+  if (!i.atem) spia("sp-atem", "", "ATEM", "no ATEM in Settings");
+  else if (S.nomi_in_corso) spia("sp-atem", "attento", "ATEM", "reading source names…");
+  else if (S.nomi_errore) spia("sp-atem", "male", "ATEM", S.nomi_errore);
+  else if (S.nomi_letti) spia("sp-atem", "si", "ATEM", "source names read at " + S.nomi_letti);
+  else spia("sp-atem", "", "ATEM", "source names not read yet");
+  if (!i.hyperdeck) spia("sp-hd", "", "HyperDeck", "no HyperDeck in Settings");
+  else if (inRegistrazione() && S.hyperdeck_record) spia("sp-hd", /^2\d\d/.test(S.hyperdeck_record) ? "si" : "male", "HyperDeck", S.hyperdeck_record);
+  else spia("sp-hd", "", "HyperDeck", i.hyperdeck + ": starts and stops with REC");
+  const conAux = S.ingressi.filter(d => d.aux > 0).length;
+  spia("sp-mappa", conAux ? "si" : "attento", "Input map", conAux ? conAux + (conAux === 1 ? " input mapped to an aux" : " inputs mapped to an aux") : "no input map: press Map inputs… below the tracks, off air only");
+  spia("sp-porta", collegato ? "si" : "male", ":" + (i.porta || 8811), collegato ? "recorder connected" : "recorder not responding");
+}
+
+function aggiornaTracce() {
+  const d = durataSecondi(), f = d * FPS, per = flussoPerTraccia();
+  const p = partenzaFotogrammi(), vivo = daTc(S.timecode);
+  $("partenza").textContent = p !== null ? tc(p) : "--:--:--:--";
+  $("durata").textContent = tc(f);
+  const [a, b] = finestra(d), span = b - a, pos = t => (t - a) / span * 100;
+  righello(a, b, d, p !== null ? p : vivo);
+  barraTempo(a, b, d);
+  const tracce = (S.tracce || []);
+  const mk = markerNelTempo();
+  righe.forEach((r, i) => {
+    const x = S.ingressi[r.n] || r.d; r.d = x;
+    const el = r.el, t = inRegistrazione() || S.inizio ? tracce.find(k => k.porta === x.porta) : null;
+    const esclusa = inRegistrazione() ? !t : !r.armata || !x.aperta;
+    el.classList.toggle("esclusa", esclusa);
+    el.classList.toggle("senza", !x.aperta || !x.segnale);
+    el.querySelector(".vuota").textContent = !x.aperta ? "INPUT NOT OPEN" : "NO SIGNAL";
+    el.querySelector(".colore-traccia").style.background = tinta(x);
+    const arma = el.querySelector(".arma");
+    arma.classList.toggle("si", inRegistrazione() ? !!t : r.armata && x.aperta);
+    arma.disabled = inRegistrazione() || !x.aperta;
+    // il nome: durante la registrazione quello del file vero, prima quello della sorgente o quello scritto
+    r.input.disabled = inRegistrazione();
+    if (t) r.input.value = t.file.replace(/\.mov$/i, "");
+    else if (!r.toccato && document.activeElement !== r.input) r.input.value = nomeBase(x);
+    const tl = el.querySelector(".tally");
+    tl.className = "tally" + (x.sorgente >= 10000 ? " pgm" : ""); tl.textContent = x.sorgente >= 10000 ? "PGM" : "";
+    el.querySelector(".via").innerHTML = `<b>${html(x.porta.replace(/^DeckLink\s+/i, ""))}</b> · ${html(x.connettore)}` +
+      (x.formato ? " · " + (x.formato_registratore && x.formato_registratore !== MODO
+        ? `<span class="male">${html(x.formato)}, not ${html(MODO)}: this input stays empty</span>` : html(x.formato)) : "") +
+      (!x.aperta ? ` · <span class="male">${html(x.errore)}</span>`
+        : x.aux > 0 ? ` · AUX ${x.aux}${x.nome_sorgente ? ` ← <b>${html(x.nome_sorgente)}</b>` : ""}` : " · not in the input map");
+    el.querySelector(".tc-traccia").textContent = x.tc !== "--" ? x.tc : "--:--:--:--";
+    const o = el.querySelector(".origine");
+    o.className = "origine " + (!x.aperta || !x.segnale ? "nero" : x.tc_dal_segnale ? "segnale" : "stimato");
+    o.textContent = !x.aperta ? "closed" : !x.segnale ? (t ? "black with TC" : "no signal") : x.tc_dal_segnale ? "TC from signal" : "estimated TC";
+    const misura = S.ritardi || {}, esito = ((misura.esito || {}).porte || []).find(k => k.porta === x.porta);
+    r.ritN.disabled = r.ritM.disabled = inRegistrazione() || misura.in_corso;
+    if (document.activeElement !== r.ritN) r.ritN.value = x.ritardo ?? 0;
+    const es = el.querySelector(".rit .esito");
+    es.className = "esito" + (esito ? (esito.ritardo >= 0 ? " ok" : " male") : "");
+    es.textContent = misura.in_corso && r.ritM.checked ? "…" : esito ? (esito.ritardo >= 0 ? "✓" : "⚠") : "";
+    es.title = esito ? esito.nota : "";
+    el.querySelector(".conti").innerHTML = t
+      ? `<b>${tc(t.scritti)}</b> · <b>${it(t.scritti / FPS * per / 1e9, 1)} GB</b> · dropped <b class="${t.persi ? "male" : ""}">${t.persi}</b>` +
+        ` · repeated <b>${t.riempiti}</b> · black <b class="${t.neri ? "male" : ""}">${t.neri.toLocaleString("en-US")}</b> · max queue <b>${t.coda_max}</b>` +
+        (t.errore ? ` · <b class="male">${html(t.errore)}</b>` : "")
+      : x.aperta ? `levels <b>${x.db.map(v => v <= -100 ? "−∞" : it(v, 1)).join(" / ")}</b> dBFS` : "";
+    // livelli in dBFS di picco
+    r.vu.forEach((v, k) => {
+      const db = x.db[k] ?? -120, p = picco(r, k, db), tacca = v.firstChild;
+      v.style.setProperty("--v", (100 - frazioneDb(db) * 100) + "%");
+      tacca.style.setProperty("--p", p > -60 ? "calc(" + frazioneDb(p) * 100 + "% - 1px)" : "-4px");
+      tacca.className = zonaDb(p);
+    });
+    r.el.querySelector(".vu").title = x.db.map(v => v <= -100 ? "−∞" : it(v, 1)).join(" / ") + " dBFS";
+    // la clip: dalla partenza alla testina, con la storia dei livelli sotto
+    const clip = el.querySelector(".clip"), corsia = el.querySelector(".corsia");
+    const mostra = !!t && S.inizio;
+    clip.style.display = mostra ? "block" : "none";
+    if (mostra) {
+      clip.style.setProperty("--tinta", tinta(x));
+      clip.querySelector(".testo").textContent = t.file;
+      const x0 = Math.max(0, pos(0)), x1 = Math.min(100, pos(d));
+      clip.style.left = x0 + "%"; clip.style.width = Math.max(0, x1 - x0) + "%";
+      if (registra()) ricordaLivello(r, d, Math.max(x.db[0], x.db[1] ?? -120));
+      disegnaForma(r, Math.max(0, a), Math.min(d, b));
+    }
+    corsia.querySelectorAll(".linea-marker,.testina").forEach(e => e.remove());
+    let h = "";
+    mk.forEach(m => { if (m.t >= a && m.t <= b) h += `<div class="linea-marker" style="left:${pos(m.t)}%;background:${TINTE_MARKER[m.colore] || "#999"}"></div>`; });
+    if (S.inizio && d >= a && d <= b) h += `<div class="testina" style="left:${pos(d)}%"></div>`;
+    corsia.insertAdjacentHTML("beforeend", h);
+  });
+  const n = armate().length;
+  $("conta-tracce").textContent = righe.length + (righe.length === 1 ? " track · " : " tracks · ") + (inRegistrazione() ? tracce.length : n) + " recording · " + S.ingressi.length + " inputs";
+  $("flusso-piccolo").textContent = nomeCodec(imp().mbit || "") + " · " + it(per * (inRegistrazione() ? tracce.length : n) / 1e6, 0) + " MB/s";
+}
+
+// la storia dei livelli di una riga, per la striscia sotto la clip: al più 4000 punti, poi si dimezza tenendo il massimo
+// La storia dei livelli la tiene il registratore dal REC (/livelli): una pagina aperta a metà
+// registrazione o dopo lo STOP disegna la forma d'onda dall'inizio. 15 novembre 2026.
+let storiaFatta = false;
+async function caricaStoria() {
+  try {
+    const j = await chiedi("/livelli");
+    (j.ingressi || []).forEach(x => {
+      const r = righe.find(r => r.n === x.n);
+      if (!r || !x.db.length) return;
+      const st = x.db.map((db, k) => [(k + 1) * j.passo_s, frazioneDb(db)]), fine = st.length * j.passo_s;
+      r.livelli = st.concat(r.livelli.filter(p => p[0] > fine));
+    });
+  } catch (e) {}
+}
+function ricordaLivello(r, t, db) {
+  const v = frazioneDb(db), L = r.livelli;
+  if (L.length && t - L[L.length - 1][0] < 0.2) { L[L.length - 1][1] = Math.max(L[L.length - 1][1], v); return; }
+  L.push([t, v]);
+  if (L.length > 4000) r.livelli = L.filter((_, k) => k % 2 === 0).map((p, k) => [p[0], Math.max(p[1], (L[k*2 + 1] || p)[1])]);
+}
+function disegnaForma(r, t0, t1) {
+  const c = r.forma, w = Math.max(1, Math.round(c.clientWidth)), h = c.height;
+  if (c.width !== w) c.width = w;
+  const g = c.getContext("2d");
+  g.clearRect(0, 0, w, h);
+  if (!(t1 > t0) || !r.livelli.length) return;
+  g.fillStyle = "rgba(255,255,255,.6)";
+  const col = new Float32Array(w);
+  r.livelli.forEach(([t, v]) => { if (t < t0 || t > t1) return; const x = Math.min(w - 1, Math.floor((t - t0) / (t1 - t0) * w)); col[x] = Math.max(col[x], v); });
+  let ultimo = 0;
+  for (let x = 0; x < w; x++) { const v = col[x] || ultimo; ultimo = v; const a = v * h / 2; g.fillRect(x, h/2 - a, 1, Math.max(1, a * 2)); }
+}
+
+// I limiti al numero di tracce (Andrea, 17 novembre: «verificando l'hardware presente sulla macchina, proponga, in base
+// al codec e alle specifiche tecniche del PC, quante tracce è possibile registrare»). Processore e disco col 30% di
+// margine, come il semaforo; le aux contano solo se l'ATEM è stato letto; lo spazio solo con una durata prevista.
+function tracceMassime(per) {
+  const voci = [];
+  const ingressi = (S.ingressi || []).filter(d => d.aperta).length;
+  if (ingressi) voci.push(["inputs", ingressi, false]);
+  if (S.aux_atem > 0) voci.push(["aux", S.aux_atem, false]);
+  const prova = A && A.prova && A.prova.codec ? A.prova.codec.find(c => c.mbit === codecDiProva(MODO, imp().mbit)) : null;
+  if (prova) voci.push(["CPU", Math.floor(prova.fps / (FPS * 1.3)), !!prova.almeno]);
+  if (S.disco && S.disco.mb_s > 0) voci.push(["drive", Math.floor(S.disco.mb_s * 1e6 / (per * 1.3)), false]);
+  const lim = +$("limite").value * 3600;
+  if (lim && S.disco && S.disco.esiste) voci.push(["space " + lim / 3600 + " h", Math.floor(S.disco.libero_gb * 1e9 / (per * lim)), false]);
+  if (!voci.length) return { n:null, voci, chi:"", almeno:false };
+  const min = Math.min(...voci.map(v => v[1])), frena = voci.filter(v => v[1] === min);
+  // «+» solo se a frenare è soltanto una prova che non ha trovato il suo limite
+  return { n:min, voci, chi: voci.length > 1 ? frena.map(v => v[0]).join(", ") : "", almeno: frena.every(v => v[2]) };
+}
+
+function aggiornaRisorse() {
+  const n = inRegistrazione() ? (S.tracce || []).length : armate().length;
+  const per = flussoPerTraccia(), tot = per * n, d = durataSecondi();
+  const D = S.disco, cartella = imp().cartella || "";
+  $("flusso").textContent = n ? it(tot/1e6, 0) + " MB/s" : "--"; segmenti("s-flusso", tot / 1e9, true);
+  $("eti-spazio").textContent = cartella ? "Space used on " + (cartella.startsWith("\\\\") ? "network" : cartella.slice(0, 2)) : "Space used";
+  const usati = registra() ? d * tot : 0;
+  $("spazio").textContent = D.esiste ? it(usati/1e9, 0) + " GB" : "--";
+  segmenti("s-spazio", D.esiste ? usati / Math.max(1, (registra() ? liberoAllaPartenza : D.libero_gb) * 1e9) : 0, true);
+  const resta = autonomiaSecondi();
+  $("autonomia").textContent = ore(resta);
+  // disco: la velocità misurata con la prova di scrittura, contro il flusso di adesso
+  const vel = D.mb_s > 0 ? D.mb_s * 1e6 : 0, md = vel && tot ? vel / tot : null;
+  $("m-disco").textContent = S.misura.in_corso ? "testing…" : md ? "margin " + it(md, 1) + "×" : vel ? "—" : "not measured";
+  segmenti("s-disco", md ? 1 / md : 0);
+  $("m-disco-nota").innerHTML = S.misura.in_corso ? "write test running, ten files for five seconds"
+    : vel ? "measured: " + it(D.mb_s, 0) + " MB/s" + (!inRegistrazione() ? ' · <a id="rimisura">measure again</a>' : "")
+    : cartella && D.esiste && !inRegistrazione() ? '<a id="rimisura">measure the drive now</a>, five seconds' : "";
+  if ($("rimisura")) $("rimisura").onclick = misuraDisco;
+  // processore: la prova di codifica fatta dal controllo della macchina
+  const prova = A && A.prova && A.prova.codec ? A.prova.codec.find(c => c.mbit === codecDiProva(MODO, imp().mbit)) : null;
+  const mc = prova && n ? prova.fps / (FPS * n) : null;
+  $("m-cpu").textContent = mc ? "margin " + it(mc, 1) + "×" + (prova.almeno ? "+" : "") : "—"; segmenti("s-cpu", mc ? 1 / mc : 0);
+  $("m-cpu-nota").textContent = prova ? "from the encoding test of " + (A.data || "").slice(0, 10) + (prova.almeno ? ", at least" : "")
+                                      : nomeCodec(imp().mbit) + ": run the encoding test in System check";
+  // quante tracce regge questa macchina col codec e il disco scelti: il più piccolo dei limiti, e si dice quale frena
+  const M = tracceMassime(per);
+  $("m-max").textContent = M.n == null ? "--" : n + " of " + M.n + (M.almeno ? "+" : "");
+  segmenti("s-max", M.n ? n / M.n : 0);
+  $("m-max-nota").textContent = M.voci.length ? (M.chi ? "limit: " + M.chi + " · " : "") + M.voci.map(v => v[0] + " " + v[1] + (v[2] ? "+" : "")).join(" · ") : "";
+  $("m-max-nota").title = M.voci.length ? "With a 30% margin on CPU and drive. Inputs: open DeckLink inputs; aux: ATEM aux outputs; space: tracks that fit for the expected duration" : "";
+  // il semaforo: prima del REC si guarda se basta lo spazio per la durata prevista, durante si avvisa a mezz'ora
+  const lim = +$("limite").value * 3600, serve = registra() && lim ? lim - d : lim;
+  const persi = S.persi || 0, errTraccia = (S.tracce || []).find(k => k.errore);
+  let cl = "verde", testo = registra() ? "ALL OK" : "READY", nota = registra() ? "dropped 0" : n === 1 ? "1 track armed" : n + " tracks armed";
+  const metti = (c, t, no) => { cl = c; testo = t; nota = no; };
+  if (!collegato) metti("rosso", "RECORDER NOT RESPONDING", "is it still running?");
+  else if (S.fase === "partenza") metti("giallo", "STARTING…", "checks and opening files");
+  else if (S.fase === "fine") metti("giallo", "CLOSING FILES…", "do not switch off");
+  else if (registra()) {
+    if (errTraccia) metti("rosso", "TRACK ERROR", errTraccia.file + ": " + errTraccia.errore);
+    else if (persi) metti("rosso", "DROPPED FRAMES", persi + " in total");
+    else if (lim && resta < serve) metti("rosso", "NOT ENOUGH SPACE", "needed " + ore(serve) + ", available " + ore(resta));
+    else if (resta < 1800) metti("giallo", "LESS THAN 30 MIN", ore(resta) + " left");
+    else { const avvisi = (S.controlli || []).filter(c => c.esito !== "verde");
+      if (avvisi.length) metti("giallo", "RECORDING, WITH WARNINGS", avvisi.map(c => c.testo).join(" · ")); }
+  } else {
+    if (S.cartella && S.progetto_stato === 1) metti("giallo", "BUILDING PROJECT", S.progetto);
+    else if (S.cartella && S.progetto_stato === 3) metti("rosso", "PROJECT NOT BUILT", S.progetto + " · PROJECT button to retry");
+    else if (!cartella) metti("giallo", "CHOOSE DESTINATION", "Destination, top left");
+    else if (!D.esiste) metti("rosso", "FOLDER NOT FOUND", cartella);
+    else if (!n) metti("giallo", "NO TRACK ARMED", "R next to the meters");
+    else if (M.n != null && n > M.n && !M.almeno)
+      metti(/CPU|drive/.test(M.chi) ? "rosso" : "giallo", "TOO MANY TRACKS", n + " armed, this machine handles " + M.n + " (limit: " + (M.chi || M.voci[0][0]) + ")");
+    else if (S.misura.in_corso) metti("giallo", "DRIVE TEST", "five seconds");
+    else if (!md) metti("giallo", "DRIVE NOT MEASURED", "write test before REC");
+    else if (md < 1.3) metti("rosso", "DRIVE TOO SLOW", "margin " + it(md, 1) + "×, 1.3 needed");
+    else if (mc && mc < 1.3) metti("rosso", "CPU TOO SLOW", "margin " + it(mc, 1) + "×: fewer tracks or a lighter codec");
+    else if (lim && resta < serve) metti("rosso", "NOT ENOUGH SPACE", "needed " + ore(serve) + ", available " + ore(resta));
+    else if (!lim && resta < 7200) metti("giallo", "LESS THAN 2 HOURS", ore(resta) + " left");
+    else if (!mc) metti("giallo", "MARGIN NOT MEASURED", "encoding test in System check");
+    else if (S.errore) metti("rosso", "DID NOT START", S.errore);
+    else if (S.progetto && S.cartella) metti("verde", "RECORDING CLOSED", S.progetto);
+  }
+  $("stato").className = "stato " + cl; $("stato-testo").textContent = testo; $("stato-nota").textContent = nota; $("stato-nota").title = nota;
+}
+
+// ============================================================ sistema: il carico vero di questa macchina
+const storia = { cpu:[], gpu:[], ram:[] };
+function grafico(id, valori, colore) {
+  const c = $(id), g = c.getContext("2d"), W = c.width, H = c.height;
+  g.clearRect(0,0,W,H);
+  g.strokeStyle = "rgba(255,255,255,.06)"; g.beginPath(); g.moveTo(0,H/2); g.lineTo(W,H/2); g.stroke();
+  if (valori.length < 2) return;
+  const passo = W / 239;
+  g.beginPath(); g.moveTo(W - (valori.length-1)*passo, H);
+  valori.forEach((v, k) => g.lineTo(W - (valori.length-1-k)*passo, H - v/100*H));
+  g.lineTo(W, H); g.closePath(); g.fillStyle = colore + "33"; g.fill();
+  g.beginPath(); valori.forEach((v, k) => { const x = W - (valori.length-1-k)*passo, y = H - v/100*H; k ? g.lineTo(x,y) : g.moveTo(x,y); });
+  g.strokeStyle = colore; g.lineWidth = 1.2; g.stroke();
+}
+function sistema() {
+  const c = S.carico || {};
+  [["cpu", c.cpu], ["gpu", c.gpu], ["ram", c.ram]].forEach(([k, v]) => { storia[k].push(+v || 0); if (storia[k].length > 240) storia[k].shift(); });
+  $("v-cpu").innerHTML = Math.round(c.cpu || 0) + "<small> %</small>"; segmenti("s-cpu-uso", (c.cpu || 0) / 100);
+  $("v-gpu").innerHTML = c.gpu >= 0 ? Math.round(c.gpu) + "<small> %</small>" : "—"; segmenti("s-gpu-uso", (c.gpu || 0) / 100);
+  $("v-ram").innerHTML = it(c.ram_usata_gb || 0, 1) + "<small> / " + it(c.ram_gb || 0, 0) + " GB</small>"; segmenti("s-ram-uso", (c.ram || 0) / 100);
+  grafico("g-cpu", storia.cpu, "#3daf68"); grafico("g-gpu", storia.gpu, "#3f8fb8"); grafico("g-ram", storia.ram, "#9a86d0");
+}
+
+// ============================================================ finestrelle: una alla volta, a giro
+let giro = 0;
+function miniatura() {
+  const vive = accese && S ? righe.filter(r => r.d && r.d.aperta && r.d.segnale) : [];
+  if (!vive.length) return setTimeout(miniatura, 300);
+  const r = vive[giro++ % vive.length], im = new Image();
+  const dopo = () => setTimeout(miniatura, registra() ? 120 : 60);
+  im.onload = () => { r.g.drawImage(im, 0, 0, 192, 108); r.nuova = true; dopo(); };
+  im.onerror = dopo;
+  im.src = "/miniatura?n=" + r.n + "&t=" + Date.now();
+}
+function pellicola() {                                        // la striscia dentro la clip, come le miniature di Resolve
+  righe.forEach(r => { if (r.nuova) { r.nuova = false; r.el.querySelector(".film").style.backgroundImage = `url(${r.cv.toDataURL("image/jpeg", .6)})`; } });
+}
+
+// ============================================================ comandi
+// Avvisi prima del REC su quello che dipende dall'ATEM: si può registrare lo stesso, ma sapendolo
+// prima e non a diretta finita (Andrea, 31 ottobre)
+function avvisiAtem() {
+  const i = imp(), v = [];
+  if (!i.atem) v.push("No ATEM in Settings: recording without the cut log and without source names. In Resolve you get the multicam clip, but not the edited timeline.");
+  else if (S.nomi_errore) v.push("The ATEM " + i.atem + " is not responding (" + S.nomi_errore + "): recording with the signal timecode but without cuts or names. In Resolve you get the multicam clip, but not the edited timeline.");
+  if (!S.ingressi.some(d => d.segnale && d.tc_dal_segnale))
+    v.push("No input receives the ATEM timecode in the SDI signal: the files will take the computer clock time, which does not match the switcher's.");
+  return v;
+}
+let ctlMotivo = "semaforo", forzaInviata = false;
+async function rec(forza, avvisiVisti) {
+  if (inRegistrazione()) return;
+  const a = armate();
+  if (!a.length) return avviso("No track armed: press R next to the meters.");
+  const v = avvisiVisti ? [] : avvisiAtem();
+  if (v.length) {
+    ctlMotivo = "avvisi";
+    $("ctl-titolo").textContent = "Before REC";
+    $("ctl-errore").textContent = "You can record, but something that depends on the ATEM is missing.";
+    $("ctl-voci").innerHTML = v.map(t => `<div class="ctl-voce giallo"><i></i><span>${html(t)}</span></div>`).join("");
+    $("ctl").classList.add("aperto");
+    return;
+  }
+  // Andrea, 15 novembre: al REC i nomi delle sorgenti si rileggono dall'ATEM, perché un'aux cambiata da
+  // meno di 30 secondi darebbe al file il nome vecchio. Il nome scritto a mano resta quello scritto.
+  if (imp().atem && !S.nomi_errore) {
+    $("rec").disabled = true;
+    try {
+      await chiedi("/nomi?leggi=1");
+      for (const t0 = Date.now(); Date.now() - t0 < 6000; ) {
+        await new Promise(f => setTimeout(f, 150));
+        if (!(await chiedi("/nomi")).in_corso) break;
+      }
+      S = await chiedi("/stato");
+      righe.forEach(r => { if (S.ingressi[r.n]) r.d = S.ingressi[r.n]; });
+    } catch (e) {
+    } finally { $("rec").disabled = false; }
+  }
+  let q = "armate=" + a.map(r => r.n).join(",");
+  a.forEach(r => q += "&nome" + r.n + "=" + enc((r.toccato && r.input.value.trim()) || nomeBase(r.d)));
+  if (forza) q += "&forza=1";
+  forzaInviata = !!forza;
+  const j = await chiedi("/rec?" + q);
+  if (j.errore) return avviso(j.errore);
+  attesaRec = true;
+  $("ctl").classList.remove("aperto");
+}
+// la partenza va in un filo suo: se non parte, l'errore arriva con lo stato
+function esitoRec() {
+  if (!attesaRec || S.fase === "partenza") return;
+  attesaRec = false;
+  if (S.fase === "registra") { righe.forEach(r => r.toccato = false); return; }
+  if (!S.errore) return;
+  // il rifiuto per semaforo rosso si riconosce dai controlli e non dal testo dell'errore, che ora è in inglese
+  const rossi = (S.controlli || []).some(c => c.esito === "rosso");
+  if ((/semaforo rosso/.test(S.errore) || (rossi && !forzaInviata)) && (S.controlli || []).length) {
+    ctlMotivo = "semaforo";
+    $("ctl-titolo").textContent = "Pre-REC checks";
+    $("ctl-errore").textContent = "A check is red. You can record anyway, knowing this.";
+    $("ctl-voci").innerHTML = S.controlli.map(c => `<div class="ctl-voce ${c.esito}"><i></i><span>${html(c.testo)}</span></div>`).join("");
+    $("ctl").classList.add("aperto");
+  } else avviso("Did not start: " + S.errore);
+}
+$("rec").onclick = () => rec(false);
+$("ctl-forza").onclick = () => { $("ctl").classList.remove("aperto"); rec(ctlMotivo === "semaforo", true); };
+$("ctl-annulla").onclick = () => $("ctl").classList.remove("aperto");
+// STOP si tiene premuto un secondo: un clic per sbaglio non deve fermare la diretta
+let tieni = null;
+$("stop").addEventListener("pointerdown", () => {
+  if (!S || S.fase !== "registra") return;
+  $("stop").classList.add("tieni");
+  tieni = setTimeout(async () => {
+    $("stop").classList.remove("tieni");
+    const j = await chiedi("/stop");
+    if (j.errore) avviso(j.errore);
+  }, 1000);
+});
+["pointerup","pointerleave"].forEach(ev => $("stop").addEventListener(ev, () => { clearTimeout(tieni); $("stop").classList.remove("tieni"); }));
+
+// Il progetto Resolve: se allo STOP non nasce lo dice una finestra, una volta per ogni esito, e il tasto
+// PROGETTO lo rifà. 16 novembre 2026: con Resolve chiuso la pagina restava su «in costruzione».
+let prjVisto = null;
+function progettoNonCreato() {
+  if (!S || S.progetto_stato !== 3 || !S.cartella) return;
+  const chiave = S.cartella + "|" + S.progetto;
+  if (chiave === prjVisto) return;
+  prjVisto = chiave;
+  $("prj-motivo").textContent = S.progetto;
+  $("prj").classList.add("aperto");
+}
+async function creaProgetto() {
+  $("prj").classList.remove("aperto");
+  const j = await chiedi("/progetto");
+  if (j.errore) avviso(j.errore);
+}
+$("progetto").onclick = creaProgetto;
+$("prj-crea").onclick = creaProgetto;
+$("prj-chiudi").onclick = () => $("prj").classList.remove("aperto");
+
+// marker: il tasto, Invio nel testo, M fuori dai campi
+Object.entries(COLORI).forEach(([n, ing]) => {
+  const b = document.createElement("button");
+  b.style.background = TINTE_MARKER[ing]; b.title = ing; if (n === colore) b.className = "si";
+  b.onclick = () => { colore = n; $("mk-ic").style.background = TINTE_MARKER[ing]; document.querySelectorAll("#mk-colori button").forEach(x => x.classList.toggle("si", x === b)); };
+  $("mk-colori").appendChild(b);
+});
+$("mk-ic").style.background = TINTE_MARKER[COLORI[colore]];
+let mkVisti = "";
+function mostraMarker() {
+  const el = S.elenco_marker || [];
+  $("mk-conta").textContent = S.inizio || el.length ? el.length + (el.length === 1 ? " marker" : " markers") : "";
+  const chiave = el.length + "|" + (el.length ? el[el.length - 1].tc : "");
+  if (chiave === mkVisti) return;
+  mkVisti = chiave;
+  $("mk-ultimi").innerHTML = el.slice(-3).reverse().map(m =>
+    `<span class="ultimo" title="${html(FONTI_MARKER[m.fonte] || m.fonte)}"><i style="background:${TINTE_MARKER[m.colore] || "#999"}"></i><span class="num">${m.timecode}</span> ${m.testo ? html(m.testo) : "<span class='tenue'>no text</span>"}</span>`).join("");
+}
+async function marker() {
+  if (!registra()) return;
+  const j = await chiedi("/marker?testo=" + enc($("mk-testo").value.trim()) + "&colore=" + colore + "&fonte=pagina");
+  if (j.errore) return avviso(j.errore);
+  $("mk-testo").value = "";
+}
+$("mk").onclick = marker;
+$("mk-testo").addEventListener("keydown", e => { if (e.key === "Enter") marker(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { $("sel").classList.remove("aperto"); $("ctl").classList.remove("aperto"); }
+  const inCampo = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if ((e.key === "m" || e.key === "M") && !e.ctrlKey && !e.altKey && !inCampo) marker();
+  // Ctrl+Z: timeline alla vista intera; dentro un campo di testo resta l'annulla di sempre
+  if ((e.key === "z" || e.key === "Z") && e.ctrlKey && !e.altKey && !inCampo) { e.preventDefault(); zoom = null; aggiorna(); }
+});
+
+// impostazioni: ogni cambio va subito al registratore, che le salva
+async function cambia(chiave, valore) {
+  const j = await chiedi("/impostazioni?" + chiave + "=" + enc(valore));
+  if (j.errore) avviso(j.errore);
+  if (j.impostazioni && S) S.impostazioni = j.impostazioni;
+}
+["audio", "resolve"].forEach(id => $(id).onchange = () => cambia(id, $(id).value));
+$("mbit").onchange = () => cambia("mbit", $("mbit").value);
+["atem", "hyperdeck"].forEach(id => $(id).addEventListener("change", () => cambia(id, $(id).value.trim())));
+$("limite").onchange = () => scrivi("limite", $("limite").value);
+$("misura-ritardi").onclick = async () => {
+  const scelte = righe.filter(r => r.ritM.checked && r.d.aperta);
+  if (!scelte.length) { avviso("Tick “meas.” on the tracks of the inputs to measure."); return; }
+  if (!confirm("The measurement sets the aux outputs of the ticked inputs to M/E 1 program and makes eight cuts between bars and black on the ATEM program, for about ten seconds. Then it restores everything as it was.\n\nOff air only. Proceed?")) return;
+  const j = await chiedi("/misura-ritardi?porte=" + scelte.map(r => r.n).join(","));
+  if (j.errore) avviso(j.errore);
+};
+function infoRitardi() {
+  const m = S.ritardi || {}, e = m.esito, b = $("misura-ritardi"), i = $("rit-info");
+  b.disabled = inRegistrazione() || m.in_corso || !imp().atem;
+  if (m.in_corso) { i.textContent = "measuring: cuts on the program…"; i.title = ""; return; }
+  if (!e) { i.textContent = "tick “meas.” on the tracks"; i.title = "Each input's delay is set on its track, in frames"; return; }
+  const buone = (e.porte || []).filter(p => p.ritardo >= 0).length;
+  i.textContent = e.errore ? "⚠ " + e.errore : `measured ${buone} of ${(e.porte || []).length}` + (e.atem_rimesso ? " · ATEM restored" : " · ⚠ check the ATEM");
+  i.title = "Reference: " + e.riferimento + " · " + (e.porte || []).map(p => p.porta + ": " + p.nota).join(" · ");
+}
+// ============================================================ la mappa delle porte dalla pagina (sezione 9.78)
+// mappa_porte.py lanciato dal registratore: ogni aux per un attimo sul nero e sulle barre, poi rimessa com'era.
+async function faiMappa() {
+  if (inRegistrazione() || (S.mappa || {}).in_corso) return;
+  if (!imp().atem) { avviso("Set the ATEM address first: the input map switches its aux outputs."); return; }
+  if (!confirm("The input map finds which ATEM aux output is cabled to each DeckLink input.\n\n" +
+      "One at a time, every aux output of the ATEM goes to black and then to bars for about a second, and the input that follows it is the one cabled to it. " +
+      "Then the aux goes back to its source, and at the end the ATEM is read again to check that every aux is as before. About a second per aux: twelve aux outputs take about 15 seconds.\n\n" +
+      "It writes to the ATEM: off air only, never during a show. Proceed?")) return;
+  mappaVista = false;
+  const j = await chiedi("/mappa-ingressi");
+  if (j.errore) avviso(j.errore);
+}
+$("mappa-ingressi").onclick = faiMappa;
+$("agg-mappa").onclick = faiMappa;
+let mappaVista = true;
+function infoMappa() {
+  const m = S.mappa || {}, e = m.esito, i = $("map-info");
+  const mappati = (S.ingressi || []).filter(d => d.aux > 0).length;
+  const spento = inRegistrazione() || m.in_corso || !imp().atem || (S.ritardi || {}).in_corso;
+  $("mappa-ingressi").disabled = spento;
+  $("agg-mappa").disabled = spento;
+  $("agg-mappa").classList.toggle("primario", !mappati && !m.in_corso);
+  if (m.in_corso) { i.textContent = "mapping…"; i.title = "The ATEM aux outputs are switching: about a second per aux"; return; }
+  i.textContent = mappati ? mappati + " mapped" : "none";
+  i.title = mappati ? mappati + (mappati === 1 ? " input linked" : " inputs linked") + " to an ATEM aux" : "No input map yet: press Map, off air only";
+  if (!e || mappaVista) return;
+  mappaVista = true;
+  if (!e.ok) { avviso("Input map not made: " + (e.errore || "unknown error") + (e.rimesso === false ? " · ⚠ check the ATEM aux outputs" : "")); return; }
+  const amb = Object.keys(e.ambigue || {});
+  avviso(`Input map: ${e.mappate} of ${e.aperte} inputs linked to an aux` +
+    (Object.keys(e.mantenute || {}).length ? ` · ${Object.keys(e.mantenute).length} without signal kept from the previous map` : "") +
+    (e.senza_segnale && e.senza_segnale.length ? ` · ${e.senza_segnale.length} without signal` : "") +
+    (amb.length ? ` · ⚠ ${amb.length} answered more than one aux: ${amb.join(", ")}` : "") +
+    (e.rimesso ? " · ATEM restored" : " · ⚠ check the ATEM aux outputs"));
+}
+
+$("leggi-nomi").onclick = async () => { const j = await chiedi("/nomi?leggi=1"); if (j.errore) avviso(j.errore); };
+
+async function misuraDisco() {
+  const c = imp().cartella;
+  if (!c) return;
+  const j = await chiedi("/misura-disco?cartella=" + enc(c));
+  if (j.errore) avviso(j.errore);
+}
+
+// ============================================================ selettore della destinazione
+const unisci = (c, x) => c.endsWith("\\") ? c + x : c + "\\" + x;
+let bozza = null, dischi = [], letturaCartelle = 0;
+// Il selettore serve anche a scegliere una cartella qualunque (le clip HyperDeck, sezione 9.72): con «scelta»
+// non c'è il nome della registrazione e il tasto restituisce la cartella invece di salvare la destinazione.
+let selScelta = null;
+async function apriSelettore(opz) {
+  if (inRegistrazione()) return;
+  selScelta = opz && opz.scelta ? opz.scelta : null;
+  $("sel-titolo").textContent = selScelta ? opz.titolo : "Choose the destination";
+  $("sel-ok").textContent = selScelta ? opz.ok : "Record here";
+  $("sel-finale-eti").textContent = selScelta ? "Folder" : "Files will go to";
+  $("sel-blocco-nome").style.display = selScelta ? "none" : "";
+  dischi = await chiedi("/dischi");
+  if (!Array.isArray(dischi)) dischi = [];
+  const i = imp();
+  bozza = selScelta ? { cartella:opz.partenza || i.cartella || "", nome:"" } : { cartella:i.cartella || "", nome:i.nome || "" };
+  if (!bozza.cartella) { const d = dischi.find(x => !x.sistema && !reteDisco(x.tipo)) || dischi[0]; if (d) bozza.cartella = d.lettera + "\\"; }
+  $("sel-errore").textContent = "";
+  $("sel").classList.add("aperto");
+  disegnaSelettore();
+}
+function radice(c) {
+  if (c.startsWith("\\\\")) { const p = c.slice(2).split("\\"); return "\\\\" + p[0] + (p[1] ? "\\" + p[1] : ""); }
+  return c.slice(0, 2);
+}
+async function disegnaSelettore() {
+  const r = radice(bozza.cartella).toLowerCase();
+  $("sel-dischi").innerHTML = dischi.map(x => {
+    const ext = x.bus === "USB" || rimovibile(x.tipo);
+    const nota = x.misurato_mb_s > 0 ? `<span class="d-nota ok">measured ${it(x.misurato_mb_s, 0)} MB/s</span>`
+      : `<span class="d-nota">${x.sistema ? "system drive: not recommended" : reteDisco(x.tipo) ? "network: needs 10 Gb/s, must be measured" : x.bus === "SATA" && /ST\d|WD\d|HGST|Toshiba/i.test(x.modello) ? "hard disk? measure it with all tracks" : ext ? "USB: must be measured" : "not measured yet"}</span>`;
+    return `<button class="disco${x.lettera.toLowerCase() === r ? " si" : ""}" data-l="${html(x.lettera)}">
+      <span class="icona-disco ${reteDisco(x.tipo) ? "rete" : ext ? "esterno" : ""}"></span>
+      <span class="d-nome"><b>${html(x.lettera)}</b> ${html(x.etichetta)}<small>${html(x.bus)} · ${html(x.modello)}</small></span>
+      <span class="d-spazio"><i style="width:${x.totale_gb ? (1 - x.libero_gb / x.totale_gb) * 100 : 0}%"></i></span>
+      <span class="d-liberi num">${it(x.libero_gb, 0)} GB free of ${it(x.totale_gb, 0)}</span>${nota}</button>`;
+  }).join("") || '<div class="vuota-cartella">no drives found</div>';
+  $("sel-dischi").querySelectorAll(".disco").forEach(b => b.onclick = () => { bozza.cartella = b.dataset.l + "\\"; disegnaSelettore(); });
+  // briciole: la radice, poi una per cartella
+  const rad = radice(bozza.cartella), resto = bozza.cartella.slice(rad.length).split("\\").filter(Boolean);
+  let acc = rad + "\\";
+  const bri = [[rad, acc]].concat(resto.map(p => [p, acc = unisci(acc, p)]));
+  $("sel-briciole").innerHTML = bri.map(([n, p]) => `<a data-p="${html(p)}">${html(n)}</a>`).join(" › ");
+  $("sel-briciole").querySelectorAll("a").forEach(a => a.onclick = () => { bozza.cartella = a.dataset.p; disegnaSelettore(); });
+  $("sel-nome").value = bozza.nome;
+  finale();
+  $("sel-cartelle").innerHTML = '<div class="vuota-cartella">reading… a spun-down hard disk takes a few seconds</div>';
+  // un disco che si sveglia risponde tardi: vale solo l'ultima cartella chiesta
+  const mia = ++letturaCartelle;
+  const j = await chiedi("/cartelle?percorso=" + enc(bozza.cartella));
+  if (mia !== letturaCartelle) return;
+  $("sel-cartelle").innerHTML = j.errore ? `<div class="vuota-cartella">${html(j.errore)}</div>`
+    : j.cartelle.length ? j.cartelle.map(c => `<button class="cartella" data-c="${html(c)}"><span class="icona-cartella"></span>${html(c)}</button>`).join("")
+    : '<div class="vuota-cartella">no folders here</div>';
+  $("sel-cartelle").querySelectorAll(".cartella").forEach(b => b.onclick = () => { bozza.cartella = unisci(bozza.cartella, b.dataset.c); disegnaSelettore(); });
+}
+function finale() { $("sel-finale").textContent = selScelta ? bozza.cartella : unisci(bozza.cartella, bozza.nome || "<date and time>"); }
+$("dest").onclick = () => apriSelettore();
+$("sel-nome").oninput = () => { $("sel-nome").value = $("sel-nome").value.replace(/[\\/:*?"<>|]/g, ""); bozza.nome = $("sel-nome").value.trim(); finale(); };
+$("sel-nuova").onclick = async () => {
+  const n = $("sel-nuova-nome").value.trim().replace(/[\\/:*?"<>|]/g, ""); if (!n) return;
+  const p = unisci(bozza.cartella, n), j = await chiedi("/crea?percorso=" + enc(p));
+  if (j.errore) { $("sel-errore").textContent = j.errore; return; }
+  bozza.cartella = p; $("sel-nuova-nome").value = ""; disegnaSelettore();
+};
+$("sel-rete").onclick = () => {
+  const p = $("sel-rete-nome").value.trim(); if (!p.startsWith("\\\\")) { $("sel-errore").textContent = "A network path starts with \\\\"; return; }
+  bozza.cartella = p; $("sel-rete-nome").value = ""; disegnaSelettore();
+};
+$("sel-annulla").onclick = () => {
+  $("sel").classList.remove("aperto");
+  if (selScelta) { selScelta = null; if (selAnnulla) selAnnulla(); }
+};
+let selAnnulla = null;
+
+// ============================================================ clip HyperDeck (sezione 9.72)
+// Andrea, 17 novembre: gli HyperDeck non sono tracce del registratore; se in regia ce ne sono, le loro clip
+// copiate dalle schede entrano nel progetto come angoli in più, coi tagli dell'ATEM. Il programma propone
+// quale camera ha registrato ogni clip, chi registra conferma. L'abbinamento per deck si ricorda nelle
+// impostazioni (abbinamenti_hd) e viaggia coi setup.
+const hd = { reg:"", cartella:"", dati:null };
+function abbinamentiSalvati() {
+  const m = {};
+  (imp().abbinamenti_hd || "").split("|").filter(Boolean).forEach(v => { const k = v.lastIndexOf("="); if (k > 0) m[v.slice(0, k)] = v.slice(k + 1); });
+  return m;
+}
+function apriHd() {
+  if (inRegistrazione()) return;
+  if (!hd.reg && S && S.cartella) hd.reg = S.cartella;
+  $("hd-errore").textContent = "";
+  disegnaHd();
+  $("hd").classList.add("aperto");
+}
+function scegliPerHd(titolo, ok, partenza, fai) {
+  $("hd").classList.remove("aperto");
+  selAnnulla = () => $("hd").classList.add("aperto");
+  apriSelettore({ titolo, ok, partenza, scelta: c => { selAnnulla = null; fai(c); $("hd").classList.add("aperto"); disegnaHd(); if (hd.reg && hd.cartella) elencaHd(); } });
+}
+async function elencaHd() {
+  hd.dati = null; disegnaHd();
+  $("hd-errore").textContent = "";
+  $("hd-elenco").innerHTML = '<p class="tenue">reading the clips… each one is opened to read its timecode</p>';
+  const j = await chiedi("/hyperdeck/elenco?registrazione=" + enc(hd.reg) + "&cartella=" + enc(hd.cartella));
+  if (j.errore) { $("hd-elenco").innerHTML = ""; $("hd-errore").textContent = j.errore; return; }
+  hd.dati = j;
+  disegnaHd();
+}
+function durataTesto(f) { const s = Math.round(f / FPS); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function disegnaHd() {
+  $("hd-reg").textContent = hd.reg || "—";
+  $("hd-cartella").textContent = hd.cartella || "—";
+  const d = hd.dati;
+  $("hd-crea").disabled = !(d && d.clip && d.clip.some(c => !c.errore));
+  if (!d) { if (!hd.reg || !hd.cartella) $("hd-elenco").innerHTML = ""; return; }
+  if (!d.clip.length) { $("hd-elenco").innerHTML = '<p class="tenue">no MOV, MP4 or MXF clips in this folder or its subfolders</p>'; return; }
+  const salvati = abbinamentiSalvati();
+  const opzioni = [["", "— not used —"], ["program", "Program"]].concat(d.ingressi.map(i => [String(i.n), i.n + " · " + i.nome]));
+  const righe = d.clip.map((c, k) => {
+    if (c.errore) return `<tr class="fuori"><td class="file" title="${html(c.file)}">${html(c.file)}</td><td colspan="3">${html(c.errore)}</td><td></td></tr>`;
+    const v = c.deck in salvati ? salvati[c.deck] : (c.comune > 0 ? c.proposta : "");
+    const quota = d.fotogrammi ? Math.round(c.comune / d.fotogrammi * 100) : 0;
+    const da = c.comune ? (c.scarto > 0 ? "starts " + durataTesto(c.scarto) + " after REC" : c.scarto < 0 ? "starts " + durataTesto(-c.scarto) + " before REC" : "starts with REC") : "outside the recording";
+    return `<tr class="${c.comune ? "" : "fuori"}"><td class="file" title="${html(c.file)}">${html(c.file)}</td>
+      <td class="num">${html(c.tc)} – ${html(c.fine)}</td><td class="num">${durataTesto(c.fotogrammi)}</td>
+      <td>${quota}% of the recording · ${da}</td>
+      <td><select data-k="${k}">${opzioni.map(([x, t]) => `<option value="${html(x)}"${x === v ? " selected" : ""}>${html(t)}</option>`).join("")}</select></td></tr>`;
+  }).join("");
+  $("hd-elenco").innerHTML = `<p class="tenue">Recording from ${html(d.inizio)}, ${durataTesto(d.fotogrammi)}. Check the ATEM input of every clip: the proposal comes from the deck name or its folder. DeckLink tracks win over HyperDeck clips on the same input; where a clip does not cover a part, the program is used.</p>
+    <table class="hd-tab"><tr><th>Clip</th><th>Timecode</th><th>Length</th><th>Overlap</th><th style="width:200px">ATEM input</th></tr>${righe}</table>`;
+}
+$("hd-apri").onclick = apriHd;
+$("hd-chiudi").onclick = () => $("hd").classList.remove("aperto");
+$("hd-reg-scegli").onclick = () => scegliPerHd("Choose the recording", "Use this recording", hd.reg || imp().cartella, c => { hd.reg = c; hd.dati = null; });
+$("hd-cartella-scegli").onclick = () => scegliPerHd("Choose the HyperDeck clip folder", "Use this folder", hd.cartella || hd.reg, c => { hd.cartella = c; hd.dati = null; });
+$("hd-crea").onclick = async () => {
+  const d = hd.dati; if (!d) return;
+  const scelte = [...$("hd-elenco").querySelectorAll("select")].map(s => [d.clip[+s.dataset.k], s.value]);
+  const abb = scelte.filter(([, v]) => v).map(([c, v]) => c.file + "=" + v).join("|");
+  const salvati = abbinamentiSalvati();
+  scelte.forEach(([c, v]) => { if (v) salvati[c.deck] = v; else delete salvati[c.deck]; });
+  const testo = Object.entries(salvati).map(([k, v]) => k + "=" + v).join("|");
+  const s = await chiedi("/impostazioni?abbinamenti_hd=" + enc(testo));
+  if (s.impostazioni && S) S.impostazioni = s.impostazioni;
+  const j = await chiedi("/hyperdeck/usa?registrazione=" + enc(hd.reg) + "&cartella=" + enc(hd.cartella) + "&abbinamenti=" + enc(abb));
+  if (j.errore) { $("hd-errore").textContent = j.errore; return; }
+  $("hd").classList.remove("aperto");
+  avviso(abb ? "Resolve project being built with " + abb.split("|").length + " HyperDeck clips" : "Resolve project being built without HyperDeck clips");
+};
+$("sel-ok").onclick = async () => {
+  if (selScelta) { const f = selScelta; selScelta = null; $("sel").classList.remove("aperto"); f(bozza.cartella); return; }
+  const j = await chiedi("/impostazioni?cartella=" + enc(bozza.cartella) + "&nome=" + enc(bozza.nome));
+  if (j.errore) { $("sel-errore").textContent = j.errore; return; }
+  if (j.impostazioni && S) S.impostazioni = j.impostazioni;
+  $("sel").classList.remove("aperto");
+  // un disco mai misurato si prova subito: cinque secondi di scrittura, poi i file si cancellano
+  const d = dischi.find(x => x.lettera.toLowerCase() === radice(bozza.cartella).toLowerCase());
+  if (!d || !(d.misurato_mb_s > 0)) misuraDisco();
+};
+
+function segmentato(id, fai) {
+  $(id).querySelectorAll("button").forEach(b => b.onclick = () => {
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("si", x === b)); fai(b.dataset.v); scrivi(id, b.dataset.v);
+  });
+  // l'indirizzo vince sulla scelta ricordata: /registratore?vista=registrato&altezza=l
+  let q = null;
+  try { q = new URLSearchParams(location.search).get(id); } catch (e) {}
+  const v = q || leggi(id, null), b = v && $(id).querySelector(`[data-v="${v}"]`);
+  if (b) b.click();
+}
+segmentato("altezza", v => $("tracce").className = "alt-" + v);
+segmentato("vista", v => { vista = v; zoom = null; aggiorna(); });
+document.addEventListener("wheel", rotellina, { passive:false });
+// Alt lasciato da solo porterebbe il fuoco sul menu del browser e il tasto M non metterebbe più i marker
+["keydown", "keyup"].forEach(t => document.addEventListener(t, e => { if (e.key === "Alt") e.preventDefault(); }));
+$("scala").addEventListener("dblclick", () => { zoom = null; aggiorna(); });
+$("binario").addEventListener("dblclick", () => { zoom = null; aggiorna(); });
+$("binario").addEventListener("pointerdown", cliccaBinario);
+$("cursore").addEventListener("pointerdown", trascinaCursore);
+$("finestrelle").onclick = () => { accese = !accese; $("finestrelle").classList.toggle("si", accese); };
+$("vai-controllo").onclick = () => { if (!inRegistrazione()) location.href = "/primo-avvio"; };
+$("esci").onclick = async () => {
+  if (inRegistrazione() || !confirm("Quit the recorder?")) return;
+  const j = await chiedi("/esci");
+  if (j.errore) return avviso(j.errore);
+  $("spento").classList.add("aperto");
+};
+
+// ============================================================ rapporto di prova (sezioni 9.68 e 9.73)
+// Il registratore non manda niente da solo: prepara lo zip, apre la cartella e una mail già scritta.
+const notaRapporto = () => $("rp-nota").value.trim();
+async function anteprimaRapporto() {
+  $("rp-errore").textContent = "";
+  $("rp-anteprima").textContent = "reading the system check and the last recordings…";
+  try {
+    const j = await chiedi("/rapporto/anteprima?nota=" + enc(notaRapporto()));
+    if (j.errore) { $("rp-anteprima").textContent = ""; $("rp-errore").textContent = j.errore; return; }
+    $("rp-anteprima").textContent = j.testo + "\nFiles in the zip: " + j.file.join(", ");
+  } catch (e) { $("rp-anteprima").textContent = ""; $("rp-errore").textContent = "the recorder did not answer"; }
+}
+function apriRapporto() {
+  if (inRegistrazione()) return avviso("Stop the recording first: the report reads the files of the last recording");
+  $("rp-apri").classList.remove("invito");
+  $("rp-fatto").innerHTML = "";
+  $("rp").classList.add("aperto");
+  anteprimaRapporto();
+}
+$("rp-apri").onclick = apriRapporto;
+$("rp-chiudi").onclick = () => $("rp").classList.remove("aperto");
+$("rp-rileggi").onclick = anteprimaRapporto;
+$("rp-crea").onclick = async () => {
+  $("rp-crea").disabled = true;
+  $("rp-errore").textContent = "";
+  $("rp-fatto").textContent = "creating the report…";
+  try {
+    const j = await chiedi("/rapporto/crea?nota=" + enc(notaRapporto()));
+    if (j.errore) { $("rp-fatto").textContent = ""; $("rp-errore").textContent = j.errore; return; }
+    $("rp-fatto").innerHTML = "Report saved: <b>" + html(j.nome) + "</b>, " + j.kb + " KB, in the folder that has just opened. " +
+      (j.posta ? "Your mail program should now show a message to " : "No mail program answered: write to ") +
+      "<b>" + html(j.indirizzo) + "</b> with the subject <b>" + html(j.oggetto) + "</b> and attach the file. Thank you!";
+  } catch (e) { $("rp-fatto").textContent = ""; $("rp-errore").textContent = "the recorder did not answer"; }
+  finally { $("rp-crea").disabled = false; }
+};
+if (location.hash === "#rapporto") setTimeout(apriRapporto, 800);   // dal tasto della pagina di controllo
+
+// ============================================================ avviso della versione di prova (sezione 9.73)
+// Una volta per versione: l'accettazione sta nel registratore, quindi vale per la finestra e per il browser.
+async function avvisoBeta() {
+  try {
+    const b = await chiedi("/beta");
+    if (b.versione) $("versione").textContent = b.versione;
+    if (!b.accettata) { $("beta-versione").textContent = b.versione || ""; $("beta").classList.add("aperto"); }
+    else controllaPrerequisiti();
+  } catch (e) {}
+}
+$("beta-ok").onclick = async () => { try { await chiedi("/beta?accetta=1"); } catch (e) {} $("beta").classList.remove("aperto"); controllaPrerequisiti(); };
+// ============================================================ software che manca da fuori (sezione 9.77)
+// Dopo l'avviso di beta. L'essenziale (Desktop Video) torna a ogni apertura finché manca; il resto si può saltare.
+const prqEsc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
+async function controllaPrerequisiti() {
+  try {
+    const p = await chiedi("/prerequisiti");
+    const voci = (p.mancanti || []).filter(m => m.essenziale || !(p.saltati || []).includes(m.id));
+    if (!voci.length) return;
+    $("prq-elenco").innerHTML = voci.map(m => `<div class="prq-voce"><b>${prqEsc(m.nome)}</b>${m.essenziale ? '<span class="prq-essenziale">REQUIRED</span>' : ""}
+      <p>${prqEsc(m.perche)}</p><div class="prq-tasti"><button class="piccolo primario" data-apri="${prqEsc(m.id)}">Download…</button>
+      ${m.essenziale ? "" : `<button class="piccolo" data-salta="${prqEsc(m.id)}">Don't ask again</button>`}</div></div>`).join("");
+    $("prq-elenco").querySelectorAll("[data-apri]").forEach(b => b.onclick = () => chiedi("/prerequisiti?apri=" + b.dataset.apri));
+    $("prq-elenco").querySelectorAll("[data-salta]").forEach(b => b.onclick = async () => {
+      await chiedi("/prerequisiti?salta=" + b.dataset.salta);
+      b.closest(".prq-voce").remove();
+      if (!$("prq-elenco").children.length) $("prq").classList.remove("aperto");
+    });
+    $("prq").classList.add("aperto");
+  } catch (e) {}
+}
+$("prq-dopo").onclick = () => $("prq").classList.remove("aperto");
+// ============================================================ manuale (sezione 9.77): tasto Help e F1
+async function apriManuale() {
+  try { const j = await chiedi("/manuale"); if (j.errore) alert(j.errore); } catch (e) {}
+}
+$("aiuto").onclick = apriManuale;
+document.addEventListener("keydown", e => { if (e.key === "F1") { e.preventDefault(); apriManuale(); } });
+avvisoBeta();
+
+// ============================================================ il giro
+async function giroStato() {
+  try {
+    S = await chiedi("/stato");
+    collegato = true;
+    aggiorna();
+  } catch (e) {
+    collegato = false;
+    if (S) { titolo(); aggiornaRisorse(); }
+    else { $("stato").className = "stato rosso"; $("stato-testo").textContent = "RECORDER NOT RESPONDING"; }
+  }
+  $("orologio").textContent = new Date().toLocaleTimeString("en-US", { hourCycle:"h23" });
+  setTimeout(giroStato, 250);
+}
+(async () => {
+  try {
+    A = await chiedi("/analisi");
+    const s = A.sistema;
+    if (s) {
+      $("mod-cpu").textContent = s.processore.replace(/\(R\)|\(TM\)|CPU|@.*$/g, "").replace(/\s+/g, " ").trim() + " · " + s.fili + " threads";
+      $("mod-gpu").textContent = (s.schede_video[0] || {}).nome ? s.schede_video[0].nome.replace(/^NVIDIA\s+/, "") : "";
+      $("mod-ram").textContent = Math.round(s.memoria_gb) + " GB";
+    }
+  } catch (e) {}
+  await giroStato();
+  if (imp().atem && !S.nomi_letti && !S.nomi_in_corso) chiedi("/nomi?leggi=1");
+  miniatura();
+  setInterval(pellicola, 5000);
+  // da fermo si riparla con l'ATEM ogni 30 secondi: nomi aggiornati, e l'avviso prima del REC sa se risponde ancora
+  setInterval(() => { if (S && S.fase === "ferma" && imp().atem && !S.nomi_in_corso) chiedi("/nomi?leggi=1"); }, 30000);
+})();
+</script>
+</body>
+</html>
