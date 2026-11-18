@@ -48,15 +48,12 @@ The program sends nothing over the internet by itself. On the local network it t
 and HyperDeck addresses you enter. A test report is created only when you ask for it: you see what is
 inside, it is saved on your Desktop, and you decide whether and how to send it. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
-## Code signing policy
+## Code signing
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org). The project has applied to SignPath Foundation: until it is
-accepted, the installer and `mtsrec.exe` are not signed, and Windows 11 Smart App Control may block them.
-
-Only the binaries built from this repository by the GitHub Actions workflow are signed, and every release
-is approved manually. Team roles, the full policy and the privacy statement are in
-[CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+The installer and `mtsrec.exe` are **not signed yet**, so Windows may show "Windows protected your PC", and
+Windows 11 Smart App Control may block them. Signing is the next step. When the binaries are signed, only
+those built from this repository by the GitHub Actions workflow will be, and every release will be approved
+manually: see [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md), which also holds the privacy statement.
 
 ## Build from source
 

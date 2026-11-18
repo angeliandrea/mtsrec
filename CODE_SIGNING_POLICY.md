@@ -1,21 +1,20 @@
 # Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org).
+The installer and `mtsrec.exe` are not signed yet. When they are, the rules below apply.
 
 ## What is signed
 
 Only the binaries built from this repository by the [GitHub Actions workflow](.github/workflows/build.yml):
 `mtsrec.exe` and the `mtsrec-<version>.msi` installer. Third-party files included in the installer keep
 their own signatures (the Python embeddable package is signed by the Python Software Foundation).
-Every signing request is approved manually before a release.
+Every signing request will be approved manually before a release.
 
 ## Team roles
 
 - Committers and reviewers: [Andrea Angeli](https://github.com/angeliandrea)
 - Approvers: [Andrea Angeli](https://github.com/angeliandrea)
 
-All accounts with access to this repository and to SignPath use multi-factor authentication.
+All accounts with access to this repository and to the signing service use multi-factor authentication.
 
 ## Privacy statement
 
