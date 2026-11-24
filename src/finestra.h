@@ -11,10 +11,14 @@
 
 class Finestra {
 public:
+    // Perché la finestra non si chiude adesso. perche vuoto: si chiude. fermabile: quello che la tiene aperta
+    // si può fermare (mappa, misura dei ritardi), e la finestra chiede se fermarlo e chiudere (9.87).
+    struct Blocco { std::string perche; bool fermabile = false; };
     ~Finestra();
-    // si_puo_chiudere: chiamata quando si chiude la finestra; con false resta aperta e dice perché.
+    // perche_no: chiamata quando si chiude la finestra. ferma: chiamata se chi chiude risponde sì.
     // cartella_dati: dove WebView2 tiene i suoi file, fuori dalla cartella del programma.
-    void apri(const std::string& url, const std::wstring& cartella_dati, std::function<std::string()> perche_no);
+    void apri(const std::string& url, const std::wstring& cartella_dati, std::function<Blocco()> perche_no,
+              std::function<void()> ferma = {});
     // La finestra è stata chiusa da chi la usa, o non si è potuta aprire.
     bool chiusa() const { return chiusa_.load(); }
     // Dal programma, a registratore chiuso: la chiude senza chiedere.
@@ -25,5 +29,6 @@ private:
     std::thread filo_;
     std::atomic<bool> chiusa_{false};
     std::atomic<void*> hwnd_{nullptr};
-    std::function<std::string()> perche_no_;
+    std::function<Blocco()> perche_no_;
+    std::function<void()> ferma_;
 };

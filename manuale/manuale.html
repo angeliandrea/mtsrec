@@ -5,7 +5,7 @@
 <title>Multicam Timecode Sync Recorder User Manual</title>
 <style>
 @page { size: A4; margin: 18mm 17mm 20mm 17mm;
-  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 06"; font: 8pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 07"; font: 8pt "Segoe UI", sans-serif; color: #888; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", sans-serif; color: #888; } }
 @page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
 * { box-sizing: border-box; }
@@ -157,7 +157,8 @@ a { color: #a8541a; text-decoration: none; }
   <li>Wait about a second per aux, about 15 seconds for twelve. A message at the bottom of the window gives the result: how many inputs were linked to an aux, and whether the ATEM was restored.</li>
 </ol>
 <p>For each aux the recorder switches it for about a second to black and then to bars, and watches which open input changes. Then it puts the aux back as it was, and at the end it reads the ATEM again to verify every aux. The state of the aux outputs is saved on disk before anything is changed. An input that answers to more than one aux is reported and left out of the map: check its cabling. An input without signal cannot be tested: it keeps the aux it had in the previous map, unless another input has taken that aux.</p>
-<div class="attenzione"><p><b>The input map writes to the ATEM: make it off air only, never during a show.</b> It cannot run while recording, and REC and Measure are refused until it has finished.</p></div>
+<div class="attenzione"><p><b>The input map writes to the ATEM: make it off air only, never during a show.</b> It cannot run while recording, and REC and Measure are refused until it has finished. If the ATEM does not answer, the map is refused at once.</p></div>
+<p><b>Stopping the map.</b> While the map runs, <span class="ui">Map</span> and <span class="ui">Map inputs…</span> become <span class="ui">Stop</span>. Press one of them, or close the window and answer <span class="ui">Yes</span> to <i>Stop it and close the recorder?</i>: the aux outputs are put back as they were, verified, and the previous map is kept. It takes a few seconds.</p>
 <p>The map is saved to <code>%USERPROFILE%\mtsrec\porte.json</code>. Make it again whenever the cabling changes. The <span class="ui">Input map</span> light in the title bar of the recording window shows how many inputs are mapped, and the menu of free inputs shows each input with its aux and source, or <i>not in the input map</i>.</p>
 <p>The same map can be made from a command prompt with the recorder closed, for example to map only some aux outputs:</p>
 <pre>cd "%LOCALAPPDATA%\Programs\mtsrec"
@@ -334,7 +335,8 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <li>Press <span class="ui">Measure</span> in Settings.</li>
   <li>The recorder cuts between bars and black on the ATEM program and times when each input sees the change, against an SDI input that receives the ATEM timecode as reference. The result appears on each track.</li>
 </ol>
-<div class="attenzione"><p><b>Measure writes to the ATEM program: off air only.</b> It needs the ATEM address in Settings, and cannot run while recording. The state of the ATEM is saved before the measurement.</p></div>
+<div class="attenzione"><p><b>Measure writes to the ATEM program: off air only.</b> It needs the ATEM address in Settings, and cannot run while recording. The state of the ATEM is saved before the measurement. If the ATEM does not answer, Measure is refused at once.</p></div>
+<p><b>Stopping the measurement.</b> While it runs, <span class="ui">Measure</span> becomes <span class="ui">Stop</span>. Press it, or close the window and answer <span class="ui">Yes</span> to <i>Stop it and close the recorder?</i>: the ATEM program and aux outputs are put back as they were, and the delays already on the tracks are kept.</p>
 
 <h1 id="resolve">10 The Resolve project</h1>
 <p>With <i>Resolve project: yes</i>, at STOP the recorder builds a project in DaVinci Resolve Studio:</p>

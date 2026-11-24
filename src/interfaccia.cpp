@@ -508,12 +508,50 @@ std::string confronta(const std::vector<Stacco>& rif, const std::vector<Stacco>&
     return std::to_string(uguali) + " of " + std::to_string(d.size()) + " cuts at " + std::to_string(m) + " frames";
 }
 
+// Fermare la mappa o la misura dei ritardi (24 novembre 2026, sezione 9.87). Il registratore crea un file e
+// lo script lo vede fra un passo e l'altro: rimette quello che ha toccato nell'ATEM, verifica ed esce.
+// Così non si uccide mai uno script a metà, con un'aux rimasta sul nero. Lo usano il tasto Stop della
+// pagina e la chiusura della finestra, che chiede prima se fermare.
+static std::wstring file_ferma(const wchar_t* nome) { return cartella_utente() + L"\\" + nome; }
+static const wchar_t* FERMA_MAPPA = L"stop input map";
+static const wchar_t* FERMA_RITARDI = L"stop delay measurement";
+
+static void togli_ferma(const wchar_t* nome) { DeleteFileW(file_ferma(nome).c_str()); }
+
+static std::string argomento_ferma(const wchar_t* nome) {
+    togli_ferma(nome);
+    return " --ferma \"" + da_largo(file_ferma(nome)) + "\"";
+}
+
+static void crea_ferma(const wchar_t* nome) {
+    HANDLE h = CreateFileW(file_ferma(nome).c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
+}
+
+// Chiede di fermare quello che scrive nell'ATEM, se c'è. Vero se qualcosa era in corso.
+static bool ferma_scritture_atem(App& a) {
+    bool in_corso = false;
+    if (a.mappa_in_corso) { crea_ferma(FERMA_MAPPA); in_corso = true; }
+    if (a.ritardi_in_corso) { crea_ferma(FERMA_RITARDI); in_corso = true; }
+    if (in_corso) std::printf("stop requested: the ATEM is being put back as it was\n");
+    return in_corso;
+}
+
+// Prima di scrivere nell'ATEM: se la lettura di ogni 5 secondi dice che non risponde, inutile partire e far
+// aspettare (24 novembre 2026: con l'ATEM spento la mappa restava su «mapping…» 20 secondi).
+static std::string atem_muto(App& a) {
+    std::lock_guard<std::mutex> l(a.m);
+    if (a.formato_atem_errore.empty()) return {};
+    return "the ATEM at " + a.imp.atem + " does not answer: check that it is on and on the network, then try again";
+}
+
 // /misura-ritardi?porte=0,3: stacchi barre e nero sul programma, e per ogni porta il ritardo che ne esce.
 std::string misura_ritardi(App& a, const std::string& query, int& codice) {
     if (a.fase != ferma) { codice = 409; return "{\"errore\":\"delays cannot be measured while recording\"}"; }
     if (a.ritardi_in_corso) { codice = 409; return "{\"errore\":\"a measurement is already running\"}"; }
     if (a.mappa_in_corso) { codice = 409; return "{\"errore\":\"the input map is being made: wait until it restores the ATEM\"}"; }
     if (a.imp.atem.empty()) { codice = 409; return "{\"errore\":\"set the ATEM address in Settings: the measurement performs the cuts\"}"; }
+    if (const std::string m = atem_muto(a); !m.empty()) { codice = 409; return "{\"errore\":" + json_testo(m) + "}"; }
     std::vector<size_t> scelte;
     const std::string s = parametro_query(query, "porte");
     for (size_t p = 0; p < s.size();) {
@@ -545,13 +583,15 @@ std::string misura_ritardi(App& a, const std::string& query, int& codice) {
     for (int x : aux) lista += (lista.empty() ? "" : ",") + std::to_string(x);
     if (a.filo_ritardi.joinable()) a.filo_ritardi.join();
     a.ritardi_in_corso = true;
-    a.filo_ritardi = std::thread([&a, scelte, rif, lista, ip = a.imp.atem] {
+    const std::string ferma_arg = argomento_ferma(FERMA_RITARDI);
+    a.filo_ritardi = std::thread([&a, scelte, rif, lista, ferma_arg, ip = a.imp.atem] {
         std::vector<Ingresso*> coinvolti{a.ingressi[rif].get()};
         for (size_t k : scelte) coinvolti.push_back(a.ingressi[k].get());
         for (Ingresso* in : coinvolti) in->misura_luce(true);
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         std::string e;
-        const std::string r = Python::esegui("ritardi_porte.py", "--atem " + ip + (lista.empty() ? "" : " --aux " + lista), 60000, e);
+        const std::string r = Python::esegui("ritardi_porte.py", "--atem " + ip + (lista.empty() ? "" : " --aux " + lista) + ferma_arg, 60000, e);
+        togli_ferma(FERMA_RITARDI);
         std::this_thread::sleep_for(std::chrono::milliseconds(600));   // l'ultimo stacco arriva anche alle porte in ritardo
         for (Ingresso* in : coinvolti) in->misura_luce(false);
         const int giorno = a.orologio.giorno();
@@ -596,6 +636,7 @@ std::string mappa_ingressi(App& a, const std::string& query, int& codice) {
     if (a.mappa_in_corso) { codice = 409; return "{\"errore\":\"the input map is already being made\"}"; }
     if (a.ritardi_in_corso) { codice = 409; return "{\"errore\":\"delay measurement in progress: wait until it restores the ATEM\"}"; }
     if (a.imp.atem.empty()) { codice = 409; return "{\"errore\":\"set the ATEM address first: the input map switches its aux outputs\"}"; }
+    if (const std::string m = atem_muto(a); !m.empty()) { codice = 409; return "{\"errore\":" + json_testo(m) + "}"; }
     std::string aux = parametro_query(query, "aux");
     for (char c : aux)
         if (!(c >= '0' && c <= '9') && c != '-') { codice = 400; return "{\"errore\":\"aux range: a number or two joined by a dash, for example 9-12\"}"; }
@@ -605,10 +646,12 @@ std::string mappa_ingressi(App& a, const std::string& query, int& codice) {
         std::lock_guard<std::mutex> l(a.m);
         a.mappa_esito = "null";
     }
-    a.filo_mappa = std::thread([&a, aux, ip = a.imp.atem] {
+    const std::string ferma_arg = argomento_ferma(FERMA_MAPPA);
+    a.filo_mappa = std::thread([&a, aux, ferma_arg, ip = a.imp.atem] {
         std::printf("input map: started, ATEM %s%s\n", ip.c_str(), aux.empty() ? "" : (", aux " + aux).c_str());
         std::string e;
-        const std::string r = Python::esegui("mappa_porte.py", "--nel-registratore --atem " + ip + (aux.empty() ? "" : " --aux " + aux), 300000, e);
+        const std::string r = Python::esegui("mappa_porte.py", "--nel-registratore --atem " + ip + (aux.empty() ? "" : " --aux " + aux) + ferma_arg, 300000, e);
+        togli_ferma(FERMA_MAPPA);
         std::printf("%s", r.c_str());               // nel registro della sessione, riga per riga
         // L'esito è l'ultima riga che comincia con «{».
         std::string esito;
@@ -895,6 +938,10 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
     }
     if (percorso == "/misura-ritardi") { corpo = misura_ritardi(a, query, codice); return true; }
     if (percorso == "/mappa-ingressi") { corpo = mappa_ingressi(a, query, codice); return true; }
+    if (percorso == "/ferma-atem") {    // il tasto Stop di Map e Measure: lo script rimette l'ATEM ed esce
+        corpo = ferma_scritture_atem(a) ? "{\"ok\":true}" : "{\"ok\":true,\"niente\":true}";
+        return true;
+    }
     if (percorso == "/rec") { corpo = avvia_rec(a, query, codice); return true; }
     if (percorso == "/stop") { corpo = ferma_rec(a, codice); return true; }
     if (percorso == "/progetto") {      // il tasto PROGETTO: rifà il progetto dell'ultima registrazione
@@ -1124,12 +1171,14 @@ int interfaccia(bool controllo, Apertura apertura) {
     Finestra finestra;
     if (apertura == Apertura::browser) ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     if (apertura == Apertura::finestra) {
-        finestra.apri(url, cartella_utente() + L"\\finestra", [&a]() -> std::string {
-            if (a->fase != ferma) return "Recording in progress: press STOP before closing the recorder.";
-            if (a->ritardi_in_corso) return "Delay measurement in progress: wait until it restores the ATEM.";
-            if (a->mappa_in_corso) return "Input map in progress: wait until it restores the ATEM aux outputs.";
+        finestra.apri(url, cartella_utente() + L"\\finestra", [&a]() -> Finestra::Blocco {
+            if (a->fase != ferma) return {"Recording in progress: press STOP before closing the recorder.", false};
+            // Mappa e ritardi si possono fermare: la finestra chiede, e se sì lo script rimette l'ATEM ed esce
+            // prima che il registratore si chiuda (24 novembre 2026: prima si poteva solo aspettare).
+            if (a->ritardi_in_corso) return {"Delay measurement in progress: it is switching the ATEM program and aux outputs.", true};
+            if (a->mappa_in_corso) return {"Input map in progress: it is switching the ATEM aux outputs.", true};
             return {};
-        });
+        }, [&a] { ferma_scritture_atem(*a); });
         // Aperto col doppio clic la console è solo sua e si nasconde; da un terminale resta.
         DWORD processi[2];
         if (GetConsoleProcessList(processi, 2) == 1) ShowWindow(GetConsoleWindow(), SW_HIDE);

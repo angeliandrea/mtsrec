@@ -33,6 +33,20 @@ CARTELLA = Path(os.path.expandvars(r"%USERPROFILE%\mtsrec"))
 if not CARTELLA.exists() and CARTELLA.with_name("WinISORecorder").exists():   # fino alla 0.9 beta 5
     CARTELLA = CARTELLA.with_name("WinISORecorder")
 PAGINA = "http://127.0.0.1:8811"
+# Quanto si aspetta che l'ATEM risponda all'aggancio: acceso, manda il suo stato in meno di un secondo.
+# Erano 20 s, e senza ATEM il registratore restava bloccato su «mapping…» senza poter chiudere (24 novembre 2026).
+ATTESA_ATEM = 5
+# Il file che il registratore crea per fermare lo script (--ferma): tasto Stop o chiusura della finestra.
+# Lo script lo guarda fra un'aux e l'altra, rimette quelle toccate e verifica, poi esce.
+FERMA = None
+
+
+class Fermato(Exception):
+    pass
+
+
+def fermato():
+    return bool(FERMA) and os.path.exists(FERMA)
 
 
 def pacchetto(flag, sessione, ack=0, id_locale=0, dati=b""):
@@ -47,7 +61,9 @@ class Atem:
     """Una sessione che resta aperta: conferma tutto quello che arriva, tiene aggiornate aux e nomi
     e manda i comandi uno alla volta aspettando la conferma. Formato dei comandi di atem-connection."""
 
-    def __init__(self, ip):
+    def __init__(self, ip, fermabile=True):
+        """fermabile: l'aggancio si interrompe se il registratore chiede di fermare. La sessione di verifica
+        dopo il ripristino no: deve leggere l'ATEM anche quando lo script si sta fermando."""
         self.ip, self.aux, self.nomi = ip, {}, {}
         self.sessione, self.pronto, self.confermati, self.id = None, threading.Event(), set(), 0
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -55,8 +71,14 @@ class Atem:
         self.basta = False
         self.s.sendto(pacchetto(0x02, 0x53AB, dati=bytes([1, 0, 0, 0, 0, 0, 0, 0])), (ip, PORTA_ATEM))
         threading.Thread(target=self._ascolta, daemon=True).start()
-        if not self.pronto.wait(20):
-            raise RuntimeError(f"ATEM {ip} did not send its initial state")
+        t = time.time()
+        while not self.pronto.wait(0.1):
+            if fermabile and fermato():
+                self.chiudi()
+                raise Fermato("stopped before the ATEM answered: nothing was changed")
+            if time.time() - t > ATTESA_ATEM:
+                self.chiudi()
+                raise RuntimeError(f"the ATEM at {ip} did not answer within {ATTESA_ATEM} s: check that it is on and on the network")
 
     def _ascolta(self):
         while not self.basta:
@@ -153,7 +175,10 @@ def main():
     ap.add_argument("--prova", action="store_true", help="read and measure without changing anything")
     ap.add_argument("--nel-registratore", action="store_true",
                     help="launched by the recorder's Map inputs button: use the inputs it already has open")
+    ap.add_argument("--ferma", help="stop file: when it exists the map stops and puts the aux outputs back")
     a = ap.parse_args()
+    global FERMA
+    FERMA = a.ferma
     if not a.nel_registratore:
         return mappa(a)
     # Per il registratore: qualunque cosa succeda, l'ultima riga è un JSON con l'esito.
@@ -161,6 +186,10 @@ def main():
         esito = mappa(a) or {}
     except SystemExit as e:
         esito = {"ok": False, "errore": str(e.code)}
+    except Fermato as e:
+        esito = {"ok": False, "fermata": True, "rimesso": True, "errore": str(e)}
+    except RuntimeError as e:                                  # i nostri messaggi: si leggono così come sono
+        esito = {"ok": False, "errore": str(e)}
     except Exception as e:
         esito = {"ok": False, "errore": f"{type(e).__name__}: {e}"}
     print(json.dumps(esito, ensure_ascii=False), flush=True)
@@ -220,10 +249,14 @@ def mappa(a):
     for r in saltate:
         print("  ⚠", r)
 
-    trovate, cambiate = {}, []
+    trovate, cambiate, fermata = {}, [], False
     try:
         for aux in da_provare:
             if a.prova:
+                break
+            if fermato():
+                fermata = True
+                print("input map stopped: putting the aux outputs back")
                 break
             cambiate.append(aux)
             ok = atem.aux_su(aux, NERO)
@@ -247,11 +280,14 @@ def mappa(a):
     time.sleep(0.5)
     diverse = {x: (prima[x], atem.aux.get(x)) for x in prima if atem.aux.get(x) != prima[x]}
     atem.chiudi()
-    verifica = Atem(a.atem)                                    # una sessione nuova: lo stato vero
+    verifica = Atem(a.atem, fermabile=False)                   # una sessione nuova: lo stato vero
     diverse.update({x: (prima[x], verifica.aux.get(x)) for x in prima if verifica.aux.get(x) != prima[x]})
     verifica.chiudi()
     print("aux restored, verified by reading the ATEM again" if not diverse else f"⚠ AUX DIFFERENT FROM BEFORE: {diverse}")
     rimesso = not diverse
+    if fermata:                                                # mappa a metà: porte.json resta quella di prima
+        return {"ok": False, "fermata": True, "rimesso": rimesso, "aux_provate": len(cambiate),
+                "errore": "input map stopped: the previous map is kept" + ("" if rimesso else ", ⚠ check the ATEM aux outputs")}
     if a.prova:
         return {"ok": True, "prova": True, "rimesso": rimesso, "aperte": len(porte), "col_segnale": len(col_segnale)}
 

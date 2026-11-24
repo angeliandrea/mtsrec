@@ -1457,7 +1457,13 @@ async function cambia(chiave, valore) {
 $("mbit").onchange = () => cambia("mbit", $("mbit").value);
 ["atem", "hyperdeck"].forEach(id => $(id).addEventListener("change", () => cambia(id, $(id).value.trim())));
 $("limite").onchange = () => scrivi("limite", $("limite").value);
+// Durante la misura o la mappa il loro tasto diventa Stop: lo script rimette l'ATEM com'era ed esce (9.87).
+async function fermaAtem() {
+  const j = await chiedi("/ferma-atem");
+  if (j.errore) avviso(j.errore); else avviso("Stopping: the ATEM is being put back as it was…");
+}
 $("misura-ritardi").onclick = async () => {
+  if ((S.ritardi || {}).in_corso) { fermaAtem(); return; }
   const scelte = righe.filter(r => r.ritM.checked && r.d.aperta);
   if (!scelte.length) { avviso("Tick “meas.” on the tracks of the inputs to measure."); return; }
   if (!confirm("The measurement sets the aux outputs of the ticked inputs to M/E 1 program and makes eight cuts between bars and black on the ATEM program, for about ten seconds. Then it restores everything as it was.\n\nOff air only. Proceed?")) return;
@@ -1466,7 +1472,10 @@ $("misura-ritardi").onclick = async () => {
 };
 function infoRitardi() {
   const m = S.ritardi || {}, e = m.esito, b = $("misura-ritardi"), i = $("rit-info");
-  b.disabled = inRegistrazione() || m.in_corso || !imp().atem;
+  b.disabled = inRegistrazione() || (!m.in_corso && (!imp().atem || (S.mappa || {}).in_corso));
+  b.textContent = m.in_corso ? "Stop" : "Measure";
+  b.title = m.in_corso ? "Stops the measurement and puts the ATEM program, preview and aux outputs back as they were"
+                       : "Cuts between bars and black on the ATEM program to measure the delay of the ticked inputs: off air only";
   if (m.in_corso) { i.textContent = "measuring: cuts on the program…"; i.title = ""; return; }
   if (!e) { i.textContent = "tick “meas.” on the tracks"; i.title = "Each input's delay is set on its track, in frames"; return; }
   const buone = (e.porte || []).filter(p => p.ritardo >= 0).length;
@@ -1476,7 +1485,8 @@ function infoRitardi() {
 // ============================================================ la mappa delle porte dalla pagina (sezione 9.78)
 // mappa_porte.py lanciato dal registratore: ogni aux per un attimo sul nero e sulle barre, poi rimessa com'era.
 async function faiMappa() {
-  if (inRegistrazione() || (S.mappa || {}).in_corso) return;
+  if ((S.mappa || {}).in_corso) { fermaAtem(); return; }
+  if (inRegistrazione()) return;
   if (!imp().atem) { avviso("Set the ATEM address first: the input map switches its aux outputs."); return; }
   if (!confirm("The input map finds which ATEM aux output is cabled to each DeckLink input.\n\n" +
       "One at a time, every aux output of the ATEM goes to black and then to bars for about a second, and the input that follows it is the one cabled to it. " +
@@ -1492,16 +1502,22 @@ let mappaVista = true;
 function infoMappa() {
   const m = S.mappa || {}, e = m.esito, i = $("map-info");
   const mappati = (S.ingressi || []).filter(d => d.aux > 0).length;
-  const spento = inRegistrazione() || m.in_corso || !imp().atem || (S.ritardi || {}).in_corso;
+  const spento = inRegistrazione() || (!m.in_corso && (!imp().atem || (S.ritardi || {}).in_corso));
   $("mappa-ingressi").disabled = spento;
   $("agg-mappa").disabled = spento;
+  $("mappa-ingressi").textContent = m.in_corso ? "Stop" : "Map";
+  $("agg-mappa").textContent = m.in_corso ? "Stop input map" : "Map inputs…";
+  const titolo = m.in_corso ? "Stops the input map and puts the ATEM aux outputs back as they were"
+                            : "Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only";
+  $("mappa-ingressi").title = titolo;
+  $("agg-mappa").title = titolo;
   $("agg-mappa").classList.toggle("primario", !mappati && !m.in_corso);
   if (m.in_corso) { i.textContent = "mapping…"; i.title = "The ATEM aux outputs are switching: about a second per aux"; return; }
   i.textContent = mappati ? mappati + " mapped" : "none";
   i.title = mappati ? mappati + (mappati === 1 ? " input linked" : " inputs linked") + " to an ATEM aux" : "No input map yet: press Map, off air only";
   if (!e || mappaVista) return;
   mappaVista = true;
-  if (!e.ok) { avviso("Input map not made: " + (e.errore || "unknown error") + (e.rimesso === false ? " · ⚠ check the ATEM aux outputs" : "")); return; }
+  if (!e.ok) { avviso((e.fermata ? "" : "Input map not made: ") + (e.errore || "unknown error") + (e.rimesso === false ? " · ⚠ check the ATEM aux outputs" : "")); return; }
   const amb = Object.keys(e.ambigue || {});
   avviso(`Input map: ${e.mappate} of ${e.aperte} inputs linked to an aux` +
     (Object.keys(e.mantenute || {}).length ? ` · ${Object.keys(e.mantenute).length} without signal kept from the previous map` : "") +

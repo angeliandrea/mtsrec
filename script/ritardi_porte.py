@@ -25,9 +25,9 @@ ME = 0
 class AtemMe(Atem):
     """La sessione di mappa_porte che segue anche programma e anteprima del M/E 1."""
 
-    def __init__(self, ip):
+    def __init__(self, ip, fermabile=True):
         self.pgm = self.pvw = None
-        super().__init__(ip)
+        super().__init__(ip, fermabile)
 
     def _ascolta(self):
         while not self.basta:
@@ -85,10 +85,15 @@ def main():
     ap.add_argument("--atem", required=True)
     ap.add_argument("--aux", default="", help="aux outputs to switch to program, for example 3,9")
     ap.add_argument("--stacchi", type=int, default=8)
+    ap.add_argument("--ferma", help="stop file: when it exists the cuts stop and the ATEM is put back")
     a = ap.parse_args()
+    mp.FERMA = a.ferma
     aux = [int(x) for x in a.aux.split(",") if x.strip()]
     try:
         atem = AtemMe(a.atem)
+    except mp.Fermato as e:
+        print(json.dumps({"errore": str(e), "fermata": True, "rimesso": True}, ensure_ascii=False))
+        return 1
     except Exception as e:
         print(json.dumps({"errore": str(e)}, ensure_ascii=False))
         return 1
@@ -103,13 +108,16 @@ def main():
     (cartella / f"ATEM before delay measurement {datetime.datetime.now():%Y-%m-%d %H%M%S}.json").write_text(
         json.dumps({"atem": a.atem, **prima}, indent=2), encoding="utf-8")
 
-    fatti, ok = 0, True
+    fatti, ok, fermata = 0, True, False
     try:
         for x in aux:
             ok = atem.aux_su(x, PROGRAMMA_ME1) and ok
         time.sleep(0.8)                                  # le porte si assestano sul segnale nuovo
         s = NERO if atem.pgm == BARRE else BARRE
         for _ in range(a.stacchi):
+            if mp.fermato():                             # tasto Stop o finestra chiusa: si rimette tutto
+                fermata = True
+                break
             ok = atem.programma(s) and ok
             fatti += 1
             time.sleep(0.7 + random.random() * 0.6)
@@ -122,11 +130,14 @@ def main():
             atem.aux_su(x, v)
         time.sleep(0.3)
         atem.chiudi()
-    verifica = AtemMe(a.atem)                            # una sessione nuova: lo stato vero
+    verifica = AtemMe(a.atem, fermabile=False)           # una sessione nuova: lo stato vero
     dopo = {"pgm": verifica.pgm, "pvw": verifica.pvw, "aux": {x: verifica.aux.get(x) for x in aux}}
     verifica.chiudi()
     rimesso = dopo == prima
-    print(json.dumps({"ok": ok, "stacchi": fatti, "rimesso": rimesso, "prima": prima, "dopo": dopo}, ensure_ascii=False))
+    esito = {"ok": ok and not fermata, "stacchi": fatti, "rimesso": rimesso, "prima": prima, "dopo": dopo}
+    if fermata:
+        esito.update(fermata=True, errore="delay measurement stopped")
+    print(json.dumps(esito, ensure_ascii=False))
     return 0 if rimesso else 2
 
 

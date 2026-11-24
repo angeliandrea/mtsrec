@@ -39,15 +39,21 @@ std::string Python::esegui(const std::string& script, const std::string& argomen
     si.dwFlags = STARTF_USESTDHANDLES;
     si.hStdOutput = scrivi;
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    // Gli script non leggono dalla tastiera: ricevono NUL. Con l'ingresso del registratore ereditato, se quello
+    // è una pipe su cui il filo della tastiera aspetta, Windows serializza le operazioni sul file e lo script
+    // resta appeso alla sua chiusura finché la lettura non finisce (24 novembre 2026, sezione 9.87).
+    HANDLE nul = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, 0, nullptr);
+    si.hStdInput = nul != INVALID_HANDLE_VALUE ? nul : nullptr;
     std::wstring r = riga(script, argomenti);
     PROCESS_INFORMATION pi{};
     if (!CreateProcessW(nullptr, r.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
         errore = script + ": Python failed to start, error " + std::to_string(GetLastError());
+        if (nul != INVALID_HANDLE_VALUE) CloseHandle(nul);
         CloseHandle(leggi);
         CloseHandle(scrivi);
         return {};
     }
+    if (nul != INVALID_HANDLE_VALUE) CloseHandle(nul);
     CloseHandle(scrivi);
     CloseHandle(pi.hThread);
     // Si legge mentre gira, se no un'uscita lunga riempie la pipe e lo script si blocca.

@@ -20,7 +20,8 @@ const UINT CHIUDI_SENZA_CHIEDERE = WM_APP + 1;
 struct Stato {
     ComPtr<ICoreWebView2Controller> ctl;
     ComPtr<ICoreWebView2> vista;
-    std::function<std::string()> perche_no;
+    std::function<Finestra::Blocco()> perche_no;
+    std::function<void()> ferma;
     std::atomic<bool>* chiusa = nullptr;
 };
 
@@ -42,12 +43,21 @@ LRESULT CALLBACK procedura(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     case WM_CLOSE:
-        // Chiudere la finestra chiude il registratore: mai mentre registra.
+        // Chiudere la finestra chiude il registratore: mai mentre registra. Durante la mappa o la misura dei
+        // ritardi si chiede: sì le ferma, lo script rimette l'ATEM com'era e il registratore esce dopo (9.87).
         if (s && s->perche_no) {
-            const std::string no = s->perche_no();
-            if (!no.empty()) {
-                MessageBoxW(h, largo(no).c_str(), L"Multicam Timecode Sync Recorder", MB_OK | MB_ICONWARNING);
-                return 0;
+            const Finestra::Blocco b = s->perche_no();
+            if (!b.perche.empty()) {
+                if (!b.fermabile || !s->ferma) {
+                    MessageBoxW(h, largo(b.perche).c_str(), L"Multicam Timecode Sync Recorder", MB_OK | MB_ICONWARNING);
+                    return 0;
+                }
+                const std::string domanda = b.perche + "\n\nStop it and close the recorder? The ATEM is put back as it was "
+                                            "before the recorder closes, in a few seconds.";
+                if (MessageBoxW(h, largo(domanda).c_str(), L"Multicam Timecode Sync Recorder",
+                                MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+                    return 0;
+                s->ferma();
             }
         }
         if (s && s->chiusa) *s->chiusa = true;
@@ -71,8 +81,10 @@ Finestra::~Finestra() {
     if (filo_.joinable()) filo_.join();
 }
 
-void Finestra::apri(const std::string& url, const std::wstring& cartella_dati, std::function<std::string()> perche_no) {
+void Finestra::apri(const std::string& url, const std::wstring& cartella_dati, std::function<Blocco()> perche_no,
+                    std::function<void()> ferma) {
     perche_no_ = std::move(perche_no);
+    ferma_ = std::move(ferma);
     filo_ = std::thread(&Finestra::lavora, this, url, cartella_dati);
 }
 
@@ -101,6 +113,7 @@ void Finestra::lavora(std::string url, std::wstring cartella_dati) {
                              1600, 950, nullptr, nullptr, ist, nullptr);
     Stato stato;
     stato.perche_no = perche_no_;
+    stato.ferma = ferma_;
     stato.chiusa = &chiusa_;
     SetWindowLongPtrW(h, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&stato));
     hwnd_ = h;
