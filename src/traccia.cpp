@@ -20,6 +20,7 @@ void Orologio::imposta(const Cadenza& c) {
     if (c.num != cad_.num || c.den != cad_.den) valido_ = false;
     else if (valido_) tc_ = c.da_testo(cad_.testo(tc_));   // solo drop ↔ non drop: si tiene l'ora
     if (tc_ < 0) { valido_ = false; tc_ = 0; }
+    if (!valido_) sdi_ = false;
     cad_ = c;
 }
 
@@ -28,8 +29,10 @@ Cadenza Orologio::cadenza() const {
     return cad_;
 }
 
-void Orologio::aggiorna(int tc, int64_t hw_us) {
+void Orologio::aggiorna(int tc, int64_t hw_us, bool sdi) {
     std::lock_guard<std::mutex> l(m_);
+    if (!sdi && sdi_ && valido_) return;               // c'è già una porta SDI: comanda lei
+    if (sdi) sdi_ = true;
     valido_ = true;
     tc_ = tc;
     hw_us_ = hw_us;
@@ -59,6 +62,11 @@ int Orologio::da_ancora(int tc, int64_t ancora_us, int64_t hw_us) const {
 bool Orologio::valido() const {
     std::lock_guard<std::mutex> l(m_);
     return valido_;
+}
+
+bool Orologio::da_sdi() const {
+    std::lock_guard<std::mutex> l(m_);
+    return valido_ && sdi_;
 }
 
 // ------------------------------------------------------------------ traccia

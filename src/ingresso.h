@@ -101,6 +101,7 @@ private:
     mutable std::mutex m_formato_;
     std::string formato_;
     int sondati_ = 0;                                  // fotogrammi già stampati dalla sonda WINISO_SONDA_TC
+    bool solo_hdmi_ = false;                           // la porta ha solo l'ingresso HDMI (sezione 9.86)
     BMDDisplayMode modo_ = bmdModeUnknown;
     Miniatura miniatura_;
     bool aperto_ = false, avviato_ = false, audio_ = false;

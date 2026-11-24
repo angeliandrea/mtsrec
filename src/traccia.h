@@ -32,9 +32,13 @@ public:
     explicit Orologio(Cadenza c = Cadenza()) : cad_(c) {}
     // Cambiando cadenza il timecode di prima non vale più: si riparte da zero.
     void imposta(const Cadenza& c);
-    void aggiorna(int tc, int64_t hw_us);
+    // sdi false: timecode arrivato da una porta solo HDMI. Conta solo finché nessuna porta SDI ha dato il
+    // suo: il timecode HDMI dei Micro Converter SDI to HDMI 3G porta il numero del fotogramma prima, e
+    // mescolato a quello delle SDI faceva ballare la stima di un fotogramma (sezione 9.86).
+    void aggiorna(int tc, int64_t hw_us, bool sdi = true);
     int stima(int64_t hw_us) const;                    // -1 se nessuna porta ha ancora dato un timecode
     bool valido() const;
+    bool da_sdi() const;                               // l'orologio lo tiene una porta SDI
     // Il punto da cui stima conta adesso: timecode e istante. Fissato alla partenza, dà il timecode
     // dei file anche se poi quello della sorgente salta (sezione 9.56).
     void ancora(int& tc, int64_t& hw_us) const;
@@ -43,7 +47,7 @@ public:
     int giorno() const { return cadenza().giorno(); }
 private:
     mutable std::mutex m_;
-    bool valido_ = false;
+    bool valido_ = false, sdi_ = false;
     int tc_ = 0;
     int64_t hw_us_ = 0;
     Cadenza cad_;

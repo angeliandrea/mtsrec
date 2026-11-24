@@ -80,6 +80,13 @@ std::vector<Porta> porte_decklink() {
 Ingresso::Ingresso(IDeckLink* scheda, std::string nome, Orologio& orologio)
     : scheda_(scheda), nome_(std::move(nome)), orologio_(orologio) {
     scheda_->AddRef();
+    IDeckLinkProfileAttributes* a = nullptr;
+    if (SUCCEEDED(scheda_->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void**>(&a)))) {
+        LONGLONG v = 0;
+        if (SUCCEEDED(a->GetInt(BMDDeckLinkVideoInputConnections, &v)))
+            solo_hdmi_ = (v & bmdVideoConnectionHDMI) && !(v & bmdVideoConnectionSDI);
+        a->Release();
+    }
 }
 
 Ingresso::~Ingresso() {
@@ -271,6 +278,10 @@ HRESULT Ingresso::VideoInputFrameArrived(IDeckLinkVideoInputFrame* f, IDeckLinkA
         IDeckLinkTimecode* tc = nullptr;
         bool hfr = c.base > 30 && f->GetTimecode(bmdTimecodeRP188HighFrameRate, &tc) == S_OK && tc;
         if (!hfr && f->GetTimecode(bmdTimecodeRP188Any, &tc) != S_OK) tc = nullptr;
+        // Il timecode HDMI dei Micro Converter SDI to HDMI 3G porta il numero del fotogramma prima
+        // (24 novembre 2026, 23 stacchi su 23 a −1). Se una porta SDI tiene l'orologio, la porta HDMI
+        // prende il timecode da lì, come quando l'HDMI non ne porta: provato esatto al fotogramma.
+        if (tc && solo_hdmi_ && orologio_.da_sdi()) { tc->Release(); tc = nullptr; }
         if (tc) {
             unsigned char h = 0, m = 0, s = 0, fr = 0;
             tc->GetComponents(&h, &m, &s, &fr);
@@ -287,7 +298,7 @@ HRESULT Ingresso::VideoInputFrameArrived(IDeckLinkVideoInputFrame* f, IDeckLinkA
             info.tc = c.da_etichetta(h, m, s, f_tc);
             if (info.tc >= 0) {
                 info.tc_dal_segnale = true;
-                if (!ritardo_) orologio_.aggiorna(info.tc, info.hw_us);
+                if (!ritardo_) orologio_.aggiorna(info.tc, info.hw_us, !solo_hdmi_);
             }
         }
     }
