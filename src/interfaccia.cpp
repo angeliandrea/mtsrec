@@ -799,7 +799,7 @@ std::string ferma_rec(App& a, int& codice) {
         std::error_code ec;
         std::lock_guard<std::mutex> l(a.m);
         a.progetto_stato = 0;
-        if (!a.imp.resolve) a.progetto = "Resolve project not requested: use the PROJECT button";
+        if (!a.imp.resolve) a.progetto = "Resolve project not requested: use the Project button";
         else if (!fs::exists(fs::u8path(c) / "atem.jsonl", ec))
             a.progetto = "no ATEM log: the Resolve project cannot be built";
         else avvia_progetto(a, c);

@@ -6,247 +6,321 @@
 <title>Multicam Timecode Sync Recorder</title>
 <style>
 :root {
-  --fondo:#1c1c20; --corsia:#202025; --corsia2:#1d1d22; --pannello:#26262c; --testata:#2d2d34; --campo:#18181c;
-  --linea:#111114; --linea2:#38383f; --testo:#cfcfd6; --chiaro:#ececf1; --tenue:#8c8c96; --scuro:#5f5f69;
-  --arancio:#e8892c; --ambra:#f3a644; --rosso:#e0393e; --verde:#3daf68; --giallo:#e2b93b; --blu:#3f6fa3; --viola:#7d5fb3;
-  --mono:"Cascadia Mono", Consolas, ui-monospace, monospace;
-  --testate:500px;
+  --fondo:#0d0d0f; --corsia:#1f1f23; --corsia2:#232327; --pannello:#27272c; --testata:#2b2b31; --campo:#19191c;
+  --linea:#111113; --linea2:#47474f; --testo:#c9c9ce; --chiaro:#ececef; --tenue:#9c9ca3; --scuro:#6e6e75;
+  --arancio:#7da2d6; --ambra:#e6a23c; --rosso:#e8443a; --verde:#5fbf7a; --giallo:#e6c229; --blu:#3f5d80; --viola:#6a5596;
+  --mono:"Segoe UI", system-ui, sans-serif;
+  --testate:500px; --sb:0px;
   color-scheme:dark;
 }
-* { box-sizing:border-box; }
-html, body { margin:0; background:var(--fondo); color:var(--testo); font:12px/1.35 "Segoe UI", system-ui, sans-serif; }
-body { min-width:1240px; user-select:none; }            /* 1280 meno la barra di scorrimento */
-.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+/* Ogni numero a larghezza fissa: in Segoe UI le cifre di serie sono proporzionali e un timecode che scorre farebbe
+   tremare la riga. «font:» per esteso le rimetterebbe proporzionali, da qui l'important. */
+* { box-sizing:border-box; font-variant-numeric:tabular-nums !important; }
+html, body { height:100%; margin:0; background:var(--fondo); color:var(--testo); font:13px/1.35 "Segoe UI", system-ui, sans-serif; }
+body { min-width:1240px; overflow:hidden; user-select:none; }
+.num { font-family:var(--mono); font-kerning:none; }
 .tenue { color:var(--tenue); }
-button, select, input { font:inherit; color:var(--testo); }
+button, select, input, textarea { font:inherit; color:var(--testo); }
+button { cursor:pointer; }
 
-/* ---------------------------------------------------------------- barra del titolo */
-.titolo { height:30px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:0 12px; background:#141417; border-bottom:1px solid var(--linea); }
-.marchio { font-weight:600; color:var(--chiaro); letter-spacing:.02em; display:flex; align-items:center; gap:10px; }
-.marchio b { color:var(--rosso); margin-right:5px; }
-.progetto { color:var(--tenue); }
-.progetto b { color:var(--chiaro); font-weight:600; }
-.destra { display:flex; justify-content:flex-end; align-items:center; gap:12px; }
-.spia { display:flex; align-items:center; gap:5px; color:var(--tenue); font-size:11px; white-space:nowrap; }
-.spia i { width:6px; height:6px; border-radius:50%; background:#55555e; }
-.spia.si i { background:var(--verde); } .spia.attento i { background:var(--giallo); } .spia.male i { background:var(--rosso); }
-.collega { background:none; border:1px solid var(--linea2); border-radius:3px; padding:0 8px; height:20px; font-size:11px; color:var(--tenue); cursor:pointer; }
-.collega:hover { color:var(--chiaro); border-color:#4a4a54; }
+/* ---------------------------------------------------------------- struttura: barra in alto e tre pagine */
+.app { height:100vh; display:grid; grid-template-rows:52px minmax(0,1fr); position:relative; }
+.registrando .app::after { content:""; position:absolute; left:0; right:0; top:0; height:3px; background:var(--rosso); z-index:9; }
+.top { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; padding:0 14px; background:#1c1c20; border-bottom:1px solid #060607; min-width:0; }
+.marchio { display:flex; align-items:center; gap:10px; min-width:0; white-space:nowrap; }
+.marchio svg { width:30px; height:30px; flex:none; }
+.marchio b { display:block; font-size:16px; line-height:1; color:var(--chiaro); letter-spacing:.02em; }
+.marchio span { display:block; font-size:11px; color:var(--scuro); margin-top:3px; }
+.versione { font-size:11px; color:var(--tenue); border:1px solid var(--linea2); border-radius:3px; padding:1px 7px; margin-left:4px; }
+.versione:empty { display:none; }
+.pagine { display:flex; gap:3px; padding:3px; border-radius:7px; background:#111113; border:1px solid #060607; }
+.pagine button { display:flex; align-items:center; gap:9px; height:34px; padding:0 18px 0 9px; border:0; border-radius:5px; background:none; color:#8f8f96; font-weight:600; font-size:13.5px; }
+.pagine button i { width:22px; height:22px; border-radius:50%; background:#2c2c31; color:var(--tenue); display:grid; place-items:center; font-style:normal; font-weight:700; font-size:12px; }
+.pagine button.on { background:#3d3d44; color:#fff; box-shadow:inset 0 1px 0 #ffffff14; }
+.pagine button.on i { background:#d9d9dd; color:#17171a; }
+.pagine button.fatto i { background:#22382a; color:var(--verde); }
+.pagine button.attento i { background:#3a2c10; color:var(--ambra); }
+.registrando .pagine button[data-p=rec] i { background:var(--rosso); color:#fff; }
+.destra { display:flex; justify-content:flex-end; align-items:center; gap:6px; min-width:0; }
+.spia { display:flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:4px; background:var(--pannello); border:1px solid var(--linea); color:var(--tenue); font-size:12px; white-space:nowrap; }
+.spia i { width:7px; height:7px; border-radius:50%; background:#55555e; }
+.spia.si i { background:var(--verde); } .spia.attento i { background:var(--ambra); } .spia.male i { background:var(--rosso); }
+#orologio { font-size:14px; color:var(--tenue); margin:0 8px; }
+.collega { background:none; border:1px solid transparent; border-radius:4px; padding:0 9px; height:26px; font-size:12px; color:var(--tenue); white-space:nowrap; }
+.collega:hover { color:var(--chiaro); border-color:var(--linea2); }
 .collega:disabled { opacity:.4; cursor:default; }
 
-/* ---------------------------------------------------------------- pannelli in alto */
-.alto { display:grid; grid-template-columns: 1fr 450px 340px 300px; gap:1px; background:var(--linea); border-bottom:1px solid var(--linea); }
-.pannello { background:var(--pannello); min-width:0; display:flex; flex-direction:column; }
-.pannello > h2 { margin:0; height:24px; display:flex; align-items:center; gap:8px; padding:0 10px; background:var(--testata);
-                 border-bottom:1px solid var(--linea); font-size:11px; font-weight:600; color:var(--chiaro); letter-spacing:.02em; }
-.pannello > h2 .lucchetto { display:none; color:var(--ambra); font-weight:400; }
-.registrando .pannello > h2 .lucchetto { display:inline; }
-.corpo { padding:10px 12px; flex:1; }
+.pagina { display:none; min-height:0; padding:4px; gap:4px; }
+.pagina.on { display:grid; }
+.scheda { background:var(--pannello); border:1px solid var(--linea); border-radius:4px; min-width:0; min-height:0; }
+.scheda > h2, .pannello > h2 { margin:0; height:30px; display:flex; align-items:center; gap:8px; padding:0 12px; background:var(--testata); border-bottom:1px solid var(--linea);
+  font-size:12px; font-weight:600; color:var(--chiaro); border-radius:4px 4px 0 0; white-space:nowrap; }
+.scheda > h2 span { font-weight:400; color:var(--scuro); }
+.scheda > h2 a { margin-left:auto; font-weight:600; color:#a9c6ee; cursor:pointer; }
+.scheda > h2 .lucchetto { display:none; margin-left:auto; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:#ff9d95; border:1px solid #7a2520; border-radius:3px; padding:1px 6px; }
+.registrando .scheda > h2 .lucchetto { display:inline; }
+.corpo { padding:10px 12px; }
 
-/* ispettore delle impostazioni */
-.ispettore { display:grid; grid-template-columns:repeat(2, 104px minmax(0,1fr)); gap:6px 10px; align-items:center; }
-.ispettore label { color:var(--tenue); text-align:right; white-space:nowrap; }
-select, input[type=text] { background:var(--campo); border:1px solid var(--linea2); border-radius:3px; padding:3px 7px; height:24px; width:100%; min-width:0; }
-select:focus, input:focus { outline:none; border-color:var(--arancio); }
-select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
-.fisso { height:24px; display:flex; align-items:center; padding:0 7px; color:#a9a9b2; border:1px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fisso em { font-style:normal; color:var(--scuro); margin-left:6px; }
-.con-tasto { display:flex; gap:5px; min-width:0; }
-.con-tasto button { flex:none; }
-
-/* trasporto */
-.trasporto { display:grid; grid-template-columns:1fr auto; gap:10px 10px; align-items:center; }
-.display { background:#0c0c0e; border:1px solid #050506; border-radius:3px; box-shadow:inset 0 1px 6px rgba(0,0,0,.8); padding:6px 12px 7px; min-width:0; }
-.display .eti { font-size:9.5px; letter-spacing:.12em; color:var(--scuro); font-weight:700; display:flex; justify-content:space-between; white-space:nowrap; gap:4px; }
-/* la scritta del timecode non va mai a capo e non allarga il riquadro: se non sta, si accorcia coi puntini (9.80) */
-.display .eti span:first-child { overflow:hidden; text-overflow:ellipsis; min-width:0; }
-.display .eti span:last-child { flex:none; }
-.display .eti span:last-child { color:var(--tenue); }
-.display .tc { font-family:var(--mono); font-size:35px; line-height:1.05; color:var(--ambra); letter-spacing:.02em; text-shadow:0 0 12px rgba(243,166,68,.25); }
-.registrando .display .eti span:last-child { color:var(--rosso); }
-.tasti { display:flex; gap:4px; }   /* PROJECT usciva dal pannello anche a 1680 (17 novembre 2026, 9.80) */
-.tasto { width:52px; height:46px; border-radius:4px; border:1px solid #0d0d10; background:linear-gradient(#3a3a42,#2c2c33);
-         box-shadow:inset 0 1px 0 rgba(255,255,255,.07); cursor:pointer; position:relative; overflow:hidden; display:grid; place-items:center; }
-.tasto:active { background:linear-gradient(#2c2c33,#34343b); }
-.tasto .ic { width:16px; height:16px; }
-.tasto .sotto { position:absolute; bottom:3px; left:0; right:0; text-align:center; font-size:9px; letter-spacing:.1em; color:var(--tenue); font-weight:700; }
-.tasto .ic.rec { border-radius:50%; background:#7b2a2d; }
-.tasto .ic.stop { background:#9a9aa3; border-radius:1px; width:13px; height:13px; }
-.tasto .ic.prj { width:18px; height:13px; background:linear-gradient(#9a9aa3 0 3px, transparent 3px 5px, #9a9aa3 5px 8px, transparent 8px 10px, #9a9aa3 10px 13px);
-                 clip-path:polygon(0 0,70% 0,70% 23%,100% 23%,100% 62%,40% 62%,40% 100%,0 100%); }
-.tasto.da-fare { border-color:#7a2a2d; box-shadow:0 0 0 1px var(--rosso), inset 0 1px 0 rgba(255,255,255,.07); }
-.tasto.da-fare .sotto { color:#ff9a9d; }
-.registrando #rec { background:linear-gradient(#5a1d20,#43161a); border-color:#2a0b0d; }
-.registrando #rec .ic.rec { background:var(--rosso); box-shadow:0 0 10px rgba(224,57,62,.8); }
-.registrando #rec .sotto { color:#ff9a9d; }
-#stop::after { content:""; position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--ambra); }
+/* ---------------------------------------------------------------- Record: la colonna di sinistra */
+#p-rec { grid-template-columns:340px minmax(0,1fr) 300px; }
+.colonna { display:flex; flex-direction:column; gap:4px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#45454d transparent; min-height:0; }
+.colonna > * { flex:none; }
+.eroe { padding:14px 16px; }
+.eroe-su { display:flex; align-items:center; gap:8px; }
+#stato-rec { display:inline-flex; align-items:center; height:24px; padding:0 11px; border-radius:3px; background:#22382a; color:var(--verde); font-weight:700; font-size:12px; letter-spacing:.06em; white-space:nowrap; }
+#eroe-formato { margin-left:auto; font-size:12px; color:var(--scuro); white-space:nowrap; }
+#tc { font-weight:300; font-size:54px; line-height:1; letter-spacing:.015em; color:var(--chiaro); margin:12px 0 4px; white-space:nowrap; font-kerning:none; }
+#eti-tc { font-size:12px; color:var(--scuro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rec-grande { width:100%; height:48px; margin-top:14px; border:0; border-radius:5px; background:#c9382f; box-shadow:inset 0 1px 0 #ffffff26; color:#fff; font-weight:700; font-size:14.5px;
+  display:flex; align-items:center; justify-content:center; gap:10px; }
+.rec-grande i { width:13px; height:13px; border-radius:50%; background:#fff; }
+.rec-grande span::after { content:"Start recording"; }
+.rec-grande:disabled { cursor:default; }
+.rec-grande:disabled:not(.reg) { opacity:.5; }
+.due { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
+.secondo { position:relative; overflow:hidden; height:38px; border-radius:5px; background:#3b3b42; border:1px solid #4c4c54; color:#e4e4e7; font-weight:600; font-size:13px;
+  display:flex; align-items:center; justify-content:center; gap:8px; }
+.secondo i { width:11px; height:11px; border-radius:2px; background:currentColor; }
+.secondo small { font-weight:400; font-size:11px; color:var(--tenue); }
+.secondo:disabled { opacity:.4; cursor:default; }
+.secondo.da-fare { border-color:var(--rosso); box-shadow:0 0 0 1px var(--rosso); }
+#stop::after { content:""; position:absolute; left:0; bottom:0; height:3px; width:0; background:var(--ambra); }
 #stop.tieni::after { width:100%; transition:width 1s linear; }
-.tasto:disabled { cursor:default; opacity:.45; }
-.tempi { grid-column:span 2; display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--linea); border:1px solid var(--linea); border-radius:3px; overflow:hidden; }
-.tempi div { background:#202025; padding:4px 8px; }
-.tempi .eti { font-size:9.5px; letter-spacing:.1em; color:var(--scuro); font-weight:700; }
-.tempi .num { font-size:14px; color:var(--chiaro); }
+.tempi { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--linea); }
+.tempi .eti { font-size:11px; color:var(--scuro); }
+.tempi .num { display:block; font-weight:600; font-size:14.5px; color:var(--chiaro); margin-top:2px; white-space:nowrap; }
+.registrando .eroe { background:#9c211b; border-color:#9c211b; color:#fff; }
+.registrando #stato-rec { background:#fff; color:#9c211b; }
+.registrando #tc { color:#fff; }
+.registrando #eroe-formato, .registrando #eti-tc, .registrando .tempi .eti { color:#ffffffc4; }
+.registrando .tempi { border-color:#ffffff38; }
+.registrando .rec-grande { background:#ffffff1f; box-shadow:none; opacity:1; }
+.registrando .rec-grande span::after { content:"Recording"; }
+.registrando .secondo { background:#ffffff1a; border-color:#ffffff33; color:#fff; }
+.registrando #stop:not(:disabled) { background:#f2f2f4; color:#9c211b; border-color:#f2f2f4; }
+.registrando #stop:not(:disabled) small { color:#b3544e; }
 
-/* risorse: misuratori a segmenti */
-.misure { display:grid; grid-template-columns:118px 1fr 92px; gap:7px 8px; align-items:center; }
-.misure .eti { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.misure .val { font-family:var(--mono); text-align:right; color:var(--chiaro); white-space:nowrap; }
-.segmenti { display:grid; grid-template-columns:repeat(24,1fr); gap:2px; height:9px; }
-.segmenti i { background:#141417; border-radius:1px; }
-.segmenti i.v { background:var(--verde); } .segmenti i.g { background:var(--giallo); } .segmenti i.r { background:var(--rosso); } .segmenti i.c { background:#3f8fb8; }
-.misure .nota { grid-column:2 / span 2; margin-top:-4px; font-size:10.5px; color:var(--scuro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.misure .nota a { color:var(--ambra); cursor:pointer; }
-.stato { margin-top:10px; display:flex; align-items:center; gap:8px; padding:5px 9px; border-radius:3px; background:#1a1a1e; border:1px solid var(--linea2); min-width:0; }
-.stato i { width:10px; height:10px; border-radius:50%; flex:none; }
-.stato.verde i { background:var(--verde); box-shadow:0 0 8px var(--verde); } .stato.giallo i { background:var(--giallo); box-shadow:0 0 8px var(--giallo); } .stato.rosso i { background:var(--rosso); box-shadow:0 0 8px var(--rosso); }
-.stato b { color:var(--chiaro); letter-spacing:.06em; font-size:11px; white-space:nowrap; }
-.stato small { margin-left:auto; color:var(--tenue); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.stato { display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:4px; background:#22352a; border:1px solid #2f5a3f; min-width:0; }
+.stato > i { width:11px; height:11px; border-radius:50%; flex:none; background:var(--verde); }
+.stato div { min-width:0; }
+.stato b { display:block; color:var(--chiaro); font-size:12.5px; letter-spacing:.05em; }
+.stato small { display:block; color:var(--tenue); font-size:12px; }
+.stato.giallo { background:#352b14; border-color:#6b5320; } .stato.giallo > i { background:var(--ambra); }
+.stato.rosso { background:#3a1715; border-color:#8a2a25; } .stato.rosso > i { background:var(--rosso); }
 
-/* ---------------------------------------------------------------- barra degli strumenti */
-.strumenti { height:36px; display:flex; align-items:center; gap:14px; padding:0 10px; background:var(--testata); border-bottom:1px solid var(--linea); }
+/* risorse e sistema: misuratori a 24 segmenti, come i led di un meter */
+.misure { display:grid; grid-template-columns:104px 1fr auto; gap:6px 8px; align-items:center; }
+.misure .eti { color:var(--tenue); white-space:nowrap; font-size:12px; }
+.misure .val { text-align:right; color:var(--chiaro); white-space:nowrap; font-weight:600; font-size:12.5px; }
+.segmenti { display:grid; grid-template-columns:repeat(24,1fr); gap:2px; height:8px; }
+.segmenti i { background:#141416; border-radius:1px; }
+.segmenti i.v { background:var(--verde); } .segmenti i.g { background:var(--giallo); } .segmenti i.r { background:var(--rosso); } .segmenti i.c { background:#9a9aa2; }
+.misure .nota { grid-column:2 / span 2; margin-top:-4px; font-size:11px; color:var(--scuro); }
+.misure .nota:empty { display:none; }
+.misure .nota a { color:#a9c6ee; cursor:pointer; }
+.sistema { display:flex; flex-direction:column; gap:7px; }
+.voce { display:grid; grid-template-columns:1fr auto; gap:3px 8px; align-items:end; }
+.voce .eti { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+.voce .modello { color:var(--scuro); font-size:11px; margin-left:5px; }
+.voce .val { color:var(--chiaro); font-size:15px; font-weight:600; line-height:1; white-space:nowrap; }
+.voce .val small { font-size:11px; font-weight:400; color:var(--tenue); }
+.voce .segmenti { display:none; }
+.voce canvas { grid-column:span 2; width:100%; height:14px; display:block; background:#141416; border-radius:2px; }
+.kvs { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; font-size:12.5px; }
+.kvs span { color:var(--scuro); white-space:nowrap; }
+.kvs b { font-weight:600; color:var(--testo); text-align:right; overflow-wrap:anywhere; }
+
+/* ---------------------------------------------------------------- Record: tracce e linea del tempo */
+.centro { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto auto; overflow:hidden; }
+.centro-su { display:flex; align-items:center; gap:10px; height:44px; padding:0 12px; background:var(--testata); border-bottom:1px solid var(--linea); border-radius:4px 4px 0 0; white-space:nowrap; min-width:0; }
+.centro-su h3 { margin:0; font-size:13.5px; color:var(--chiaro); }
+.centro-su .conta { color:var(--tenue); font-size:12px; white-space:nowrap; }
+#flusso-piccolo::before { content:" · "; }
+.centro-su .sp { flex:1; }
 .gruppo { display:flex; align-items:center; gap:6px; }
-.gruppo > span { color:var(--tenue); font-size:11px; white-space:nowrap; }
-.segmentato { display:flex; border:1px solid var(--linea); border-radius:3px; overflow:hidden; }
-.segmentato button { white-space:nowrap; background:#2a2a30; border:0; border-right:1px solid var(--linea); padding:3px 9px; cursor:pointer; font-size:11px; color:var(--tenue); }
-.segmentato button:last-child { border-right:0; }
-.segmentato button.si { background:#45454e; color:var(--chiaro); }
-.separa { width:1px; height:20px; background:var(--linea2); }
-.marker-testo { width:220px !important; }
-.colori { display:flex; gap:3px; }
-.colori button { width:16px; height:16px; border-radius:2px; border:1px solid rgba(0,0,0,.6); cursor:pointer; padding:0; }
-.colori button.si { outline:2px solid var(--chiaro); outline-offset:1px; }
-.tasto-marker { height:24px; padding:0 14px; border-radius:3px; border:1px solid #0d0d10; background:linear-gradient(#3a3a42,#2c2c33); cursor:pointer; font-weight:700; font-size:11px; letter-spacing:.06em; display:flex; align-items:center; gap:6px; }
-.tasto-marker i { width:9px; height:11px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
-.tasto-marker:disabled { opacity:.4; cursor:default; }
-.ultimi { display:flex; gap:6px; margin-left:auto; overflow:hidden; }
-.ultimo { display:flex; align-items:center; gap:5px; padding:1px 7px; border-radius:2px; background:#232328; border:1px solid var(--linea); white-space:nowrap; font-size:11px; }
-.ultimo i { width:7px; height:9px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
-
-/* ---------------------------------------------------------------- righello e tracce */
-.riga { display:grid; grid-template-columns:var(--testate) 1fr; }
-.righello { position:sticky; top:0; z-index:5; height:30px; background:#252529; border-bottom:1px solid var(--linea); }
-.righello .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; gap:10px; padding:0 10px; color:var(--tenue); font-size:11px; }
+.gruppo > span { color:var(--scuro); font-size:12px; white-space:nowrap; }
+.segmentato { display:flex; padding:2px; gap:2px; border:1px solid #060607; border-radius:5px; background:#141416; }
+.segmentato button { white-space:nowrap; background:none; border:0; border-radius:3px; padding:3px 9px; font-size:12px; font-weight:600; color:var(--tenue); }
+.segmentato button.si { background:#45454d; color:#fff; }
+.riga { display:grid; grid-template-columns:var(--testate) minmax(0,1fr); }
+.righello { height:32px; background:#1b1b1e; border-bottom:1px solid var(--linea); padding-right:var(--sb); }
+.righello .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; gap:10px; padding:0 12px; color:var(--scuro); font-size:11.5px; white-space:nowrap; overflow:hidden; }
 .scala { position:relative; overflow:hidden; }
 .tacca { position:absolute; bottom:0; width:1px; background:#55555e; height:8px; }
-.tacca.piccola { height:4px; background:#45454c; }
-.tacca span { position:absolute; left:4px; bottom:7px; font:10.5px var(--mono); color:var(--tenue); white-space:nowrap; }
-.bandierina { position:absolute; top:3px; width:9px; height:11px; margin-left:-4px; clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%); }
-.testina-alto { position:absolute; bottom:0; width:13px; height:12px; margin-left:-6px; background:#a9a9b2; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%); }
-.registrando .testina-alto { background:var(--rosso); }
+.tacca.piccola { height:4px; background:#3c3c43; }
+.tacca span { position:absolute; left:5px; bottom:3px; font-size:11px; line-height:13px; color:var(--tenue); white-space:nowrap; }
+.bandierina { position:absolute; top:2px; width:8px; height:10px; margin-left:-4px; border-radius:2px 2px 5px 5px; z-index:1; }
+.testina-alto { position:absolute; bottom:0; width:13px; height:11px; margin-left:-6px; background:#a9a9b2; clip-path:polygon(0 0,100% 0,50% 100%); }
+.registrando .testina-alto { background:#f0503c; }
 
+#tracce { overflow-y:auto; min-height:0; scrollbar-width:thin; scrollbar-color:#45454d var(--corsia); background:var(--corsia); }
 .traccia { border-bottom:1px solid var(--linea); height:var(--alt); }
-.testa { position:relative; background:var(--pannello); border-right:1px solid var(--linea); display:grid;
-         grid-template-columns:5px 26px var(--antw) 1fr 54px; align-items:center; gap:0; min-width:0; }
-.traccia:nth-child(even) .testa { background:#29292f; }
+.testa { position:relative; background:var(--testata); border-right:1px solid var(--linea); display:grid;
+         grid-template-columns:4px 26px var(--antw) minmax(0,1fr) auto; align-items:center; gap:0; min-width:0; }
 .colore-traccia { align-self:stretch; }
-.numero { text-align:center; font:11px var(--mono); color:var(--scuro); }
-.anteprima { position:relative; width:var(--antw); aspect-ratio:16/9; background:#000; border:1px solid #000; outline:1px solid #3a3a42; }
+.numero { position:relative; height:100%; display:grid; place-items:center; text-align:center; font-size:11.5px; color:var(--scuro); }
+.anteprima { position:relative; width:var(--antw); aspect-ratio:16/9; background:#000; border-radius:2px; overflow:hidden; outline:1px solid #000; }
 .anteprima canvas { display:block; width:100%; height:100%; }
-.anteprima .vuota { position:absolute; inset:0; display:none; place-items:center; text-align:center; font-size:9.5px; font-weight:700; letter-spacing:.08em; color:#ff8e91;
-                    background:repeating-linear-gradient(45deg,#0b0b0d 0 6px,#141417 6px 12px); padding:0 4px; }
+.anteprima .vuota { position:absolute; inset:0; display:none; place-items:center; text-align:center; font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--ambra);
+                    background:repeating-linear-gradient(135deg,#17171a 0 7px,#111113 7px 14px); padding:0 4px; }
 .senza .anteprima .vuota { display:grid; }
-.info { padding:0 10px; min-width:0; display:flex; flex-direction:column; gap:3px; }
-.nome { display:flex; align-items:center; gap:2px; white-space:nowrap; min-width:0; }
-.nome input { flex:0 1 230px; min-width:60px; height:20px; padding:0 4px; background:transparent; border:1px solid transparent; border-radius:2px;
-              font-size:13px; color:var(--chiaro); font-weight:600; user-select:text; }
-.nome input:hover:not(:disabled) { border-color:var(--linea2); background:var(--campo); }
-.nome input:focus { border-color:var(--arancio); background:var(--campo); }
-.nome input:disabled { color:var(--chiaro); border-color:transparent; }
-.nome small { color:var(--scuro); }
-.tally { margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.08em; padding:1px 6px; border-radius:2px; }
-.tally.pgm { border:1px solid #5d4a86; color:#b49be0; }
-.via { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.via b { color:#b8b8c0; font-weight:600; }
-.via .male { color:#ff8e91; }
-.tcriga { display:flex; align-items:center; gap:7px; white-space:nowrap; }
-.tcriga .num { font-size:12.5px; color:var(--chiaro); }
-.origine { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; border:1px solid; line-height:14px; }
-.origine.segnale { color:#86c6d4; border-color:#244b55; } .origine.stimato { color:#ffd866; border-color:#6b520e; } .origine.nero { color:#ff8e91; border-color:#6e2226; }
-.riga-conti { display:flex; align-items:center; gap:8px; min-width:0; }
-.riga-conti .conti { flex:1; min-width:0; }
-.rit { flex:none; display:flex; align-items:center; gap:4px; font-size:10px; color:var(--tenue); }
-.rit input[type=number] { width:32px; height:16px; padding:0 3px; font-size:10.5px; font-family:var(--mono); }
-.rit label { display:flex; align-items:center; gap:2px; cursor:pointer; }
+.tally { position:absolute; left:0; top:0; font-size:9.5px; font-weight:700; letter-spacing:.06em; padding:1px 5px; border-radius:0 0 2px 0; }
+.tally.pgm { background:var(--viola); color:#fff; }
+.tally:empty { display:none; }
+.info { padding:0 10px; min-width:0; display:flex; flex-direction:column; gap:2px; }
+/* prima riga: il nome dell'ingresso, grande; accanto l'uscita aux e la sorgente dell'ATEM se è diversa dal nome */
+.nome { display:flex; align-items:center; gap:6px; white-space:nowrap; min-width:0; }
+.testa .nome input { field-sizing:content; width:auto; min-width:56px; max-width:300px; height:21px; padding:0 4px; margin-left:-5px; background:transparent; border:1px solid transparent; border-radius:3px;
+              font-size:14px; color:var(--chiaro); font-weight:600; user-select:text; }
+.testa .nome input:hover:not(:disabled) { border-color:var(--linea2); background:var(--campo); }
+.testa .nome input:focus { outline:none; border-color:var(--arancio); background:var(--campo); }
+.testa .nome input:disabled { color:var(--chiaro); border-color:transparent; }
+.nome small { color:var(--scuro); margin-left:-5px; font-size:12px; }
+.aux { font-size:10.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px; border-radius:3px; background:#3a3a41; border:1px solid #55555e; color:#f0f0f2; }
+.aux:empty, .src:empty, .senza-mappa:empty, .persi:empty { display:none; }
+.src { font-size:12px; color:var(--tenue); }
+/* seconda riga: la scheda per esteso, il suo ingresso, il connettore e il formato che arriva */
+.via { color:var(--tenue); font-size:12.5px; white-space:nowrap; }
+.via b { color:var(--testo); font-weight:600; }
+.via i { font-style:normal; color:var(--scuro); margin:0 4px; }
+.via .male { color:#ff9d95; }
+/* terza riga: timecode in uno spazio fisso, origine del timecode, fotogrammi persi a destra */
+.tcriga { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+.tcriga .num { display:inline-block; min-width:10.4ch; font-size:12.5px; font-weight:600; color:var(--chiaro); }
+.origine { font-size:11px; font-weight:600; padding:1px 7px; border-radius:3px; background:#35353b; color:#b7b7bd; }
+.origine.segnale { background:#2b3d55; color:#a9c6ee; } .origine.stimato { background:#35353b; color:#b7b7bd; } .origine.nero { background:#3a2c10; color:var(--ambra); }
+.senza-mappa { font-size:11px; font-weight:600; padding:1px 7px; border-radius:3px; background:#3a2c10; color:var(--ambra); }
+.persi { margin-left:auto; min-width:9ch; text-align:right; font-size:12px; color:var(--scuro); }
+.persi.male { color:#ff9d95; font-weight:700; }
+/* quarta riga, nelle altezze M e L: i livelli in numeri da fermo, i conti della registrazione dopo il REC.
+   Il ritardo dell'ingresso (.rit) nasce con la riga ma si mostra in Setup, nella tabella degli ingressi */
+.riga-conti { display:flex; align-items:center; gap:10px; white-space:nowrap; }
+.rit { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--tenue); }
+.rit input[type=number] { width:44px; height:22px; padding:0 4px; font-size:12.5px; background:var(--campo); border:1px solid var(--linea2); border-radius:3px; }
+.rit input:disabled { opacity:.55; }
+.rit label { display:flex; align-items:center; gap:4px; cursor:pointer; margin-left:8px; }
 .rit input[type=checkbox] { margin:0; }
-.rit .esito.ok { color:#86c6d4; } .rit .esito.male { color:#ff8e91; }
-.conti { color:var(--scuro); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.conti b { color:var(--tenue); font-family:var(--mono); font-weight:400; }
-.conti b.male { color:#ff8e91; }
-.lati { display:flex; align-items:center; justify-content:center; gap:6px; height:100%; padding:6px 0; }
-.arma { width:20px; height:20px; border-radius:3px; border:1px solid #0d0d10; background:#36363d; font-size:10px; font-weight:800; color:var(--tenue); cursor:pointer; padding:0; }
-.arma.si { color:#ff8e91; box-shadow:inset 0 0 0 1px #8a2a2e; }
+.rit .esito.ok { color:#a9c6ee; } .rit .esito.male { color:#ff9d95; }
+.conti { color:var(--scuro); font-size:11.5px; white-space:nowrap; }
+.conti b { color:var(--tenue); font-weight:600; }
+.conti b.male { color:#ff9d95; }
+.lati { display:flex; align-items:center; justify-content:center; gap:7px; height:100%; padding:6px 8px 6px 0; }
+.arma { width:24px; height:22px; border-radius:3px; border:1px solid #4c4c54; background:#34343a; font-size:11px; font-weight:700; color:#77777e; padding:0; }
+.arma.si { background:#5a1a17; border-color:#b3352d; color:#ff9d95; }
 .arma:disabled { cursor:default; }
-.registrando .arma.si { background:var(--rosso); color:#fff; box-shadow:none; }
-/* livelli in dBFS di picco, come i misuratori del mixer Fairlight dell'ATEM (manuale Constellation, pag. 59):
-   da 0 a −20 metà altezza, sotto si stringe fino a −60; verde fino a −20, giallo fino a −9, poi rosso */
-.vu { display:flex; gap:2px; height:100%; max-height:64px; }
-.vu i { width:5px; background:#121215; position:relative; overflow:hidden; }
-.vu i::after { content:""; position:absolute; inset:0; background:linear-gradient(to top,var(--verde) 0 50%,var(--giallo) 50% 77.5%,var(--rosso) 77.5%); clip-path:inset(var(--v,100%) 0 0 0); }
-.vu i b { position:absolute; left:0; right:0; height:2px; bottom:var(--p,-4px); z-index:1; background:var(--verde); }
-.vu i b.g { background:var(--giallo); } .vu i b.r { background:var(--rosso); }
+.registrando .arma.si { background:var(--rosso); border-color:var(--rosso); color:#fff; }
+/* Livelli come un vero meter: due barre a segmenti, le tre zone sempre riconoscibili anche da spente, la tacca del picco
+   che resta due secondi. Scala del mixer dell'ATEM: verde fino a -20 dBFS (metà altezza), giallo fino a -9, poi rosso. */
+.vu { display:flex; gap:3px; height:100%; }
+.vu i { width:6px; position:relative; overflow:hidden; border-radius:1px;
+        background:linear-gradient(to top,#173222 0 50%,#3d3410 50% 77.5%,#431614 77.5%); }
+.vu i::after { content:""; position:absolute; inset:0; background:linear-gradient(to top,#4fd07f 0 50%,#f1d02c 50% 77.5%,#ff4a3d 77.5%); clip-path:inset(var(--v,100%) 0 0 0); }
+.vu i::before { content:""; position:absolute; inset:0; z-index:2; background:repeating-linear-gradient(to top,transparent 0 2px,#0b0b0d 2px 3px); }
+.vu i b { position:absolute; left:0; right:0; height:2px; bottom:var(--p,-4px); z-index:3; background:#4fd07f; }
+.vu i b.g { background:#f1d02c; } .vu i b.r { background:#ff4a3d; }
 
 .corsia { position:relative; overflow:hidden; background:var(--corsia); }
 .traccia:nth-child(even) .corsia { background:var(--corsia2); }
-.clip { position:absolute; top:4px; bottom:4px; border-radius:3px; overflow:hidden; border:1px solid rgba(0,0,0,.55); background:var(--tinta); display:none; }
-.clip .testo { position:absolute; top:0; left:0; right:0; height:15px; padding:0 6px; font-size:10.5px; color:#fff; background:rgba(0,0,0,.28); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:15px; }
-.clip .film { position:absolute; top:15px; left:0; right:0; bottom:14px; background-repeat:repeat-x; background-size:auto 100%; opacity:.9; }
-.clip .forma { position:absolute; left:0; right:0; bottom:0; height:14px; background-color:rgba(0,0,0,.35); }
+.clip { position:absolute; top:5px; bottom:5px; border-radius:3px; overflow:hidden; border:1px solid #6e93c0; background:var(--tinta); display:none; container-type:inline-size; }
+@container (max-width:90px) { .corsia .clip .testo { color:transparent; } }
+.clip .testo { position:absolute; top:0; left:0; right:0; height:16px; padding:0 6px; font-size:11px; font-weight:600; color:#eef3f9; background:rgba(0,0,0,.28); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:16px; }
+.clip .film { position:absolute; top:16px; left:0; right:0; bottom:14px; background-repeat:repeat-x; background-size:auto 100%; opacity:.85; }
+.clip .forma { position:absolute; left:0; right:0; bottom:0; height:14px; background-color:rgba(0,0,0,.3); }
 .clip .forma canvas { display:block; width:100%; height:100%; }
-.alt-s .clip .film { display:none; } .alt-s .clip .forma { top:15px; height:auto; }
-.linea-marker { position:absolute; top:0; bottom:0; width:1px; opacity:.55; }
-.testina { position:absolute; top:0; bottom:0; width:1px; background:#a9a9b2; }
-.registrando .testina { background:var(--rosso); box-shadow:0 0 4px rgba(224,57,62,.6); }
-.esclusa .testa > *:not(.lati) { opacity:.35; }
+.alt-s .clip .film { display:none; } .alt-s .clip .forma { top:16px; height:auto; background:none; }
+.linea-marker { position:absolute; top:0; bottom:0; width:1px; opacity:.6; }
+.testina { position:absolute; top:0; bottom:0; width:1.5px; background:#a9a9b2; }
+.registrando .testina { background:#f0503c; }
+.esclusa .testa > *:not(.lati) { opacity:.4; }
 .esclusa .clip { display:none !important; }
-
-/* le tracce scelte con Add track (17 novembre): × per toglierle, la barra sotto per aggiungerle */
-.numero { position:relative; height:100%; display:grid; place-items:center; }
-/* il × si vede sempre (Andrea, 17 novembre: «non vedo la possibilità di togliere le tracce»), più acceso sotto il mouse */
-.togli { position:absolute; top:4px; left:50%; transform:translateX(-50%); width:20px; height:18px; padding:0; border-radius:3px; border:1px solid #0d0d10; background:#36363d; color:#b8b8c0; font-size:14px; line-height:1; cursor:pointer; }
-.testa:hover .togli { border-color:#5a5a64; }
+.togli { position:absolute; top:4px; left:50%; transform:translateX(-50%); width:20px; height:17px; padding:0; border-radius:3px; border:1px solid #4c4c54; background:#34343a; color:#b8b8c0; font-size:13px; line-height:1; }
 .togli:hover { color:#fff; background:#8a2a2e; border-color:#8a2a2e; }
 .registrando .togli { display:none !important; }
-.aggiungi { display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--pannello); border-bottom:1px solid var(--linea); }
-.aggiungi select { width:auto; min-width:280px; max-width:520px; }
-.aggiungi .nota-agg { color:var(--tenue); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.aggiungi .nota-agg.male { color:#ff8e91; }
-.vuoto-tracce { padding:18px 12px; color:var(--tenue); font-size:12px; background:var(--corsia); border-bottom:1px solid var(--linea); }
+.alt-s .numero { padding-top:16px; } .alt-s .togli { top:3px; }
+.aggiungi { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; background:var(--testata); border-top:1px solid var(--linea); min-width:0; }
+.aggiungi select { width:auto; min-width:260px; max-width:440px; }
+.aggiungi .nota-agg { color:var(--tenue); font-size:12px; flex:1 1 220px; min-width:0; }
+.aggiungi .nota-agg.male { color:#ff9d95; }
+.vuoto-tracce { padding:22px 16px; color:var(--tenue); font-size:13px; }
 .registrando .aggiungi { display:none; }
-#setup { width:auto; min-width:150px; max-width:240px; }
+.alt-s { --alt:66px; --antw:92px; } .alt-m { --alt:88px; --antw:128px; } .alt-l { --alt:112px; --antw:172px; }
+.alt-s .riga-conti { display:none; }
+.scorrimento { height:22px; background:#1b1b1e; border-top:1px solid var(--linea); padding-right:var(--sb); border-radius:0 0 4px 4px; }
+.scorrimento .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; padding:0 12px; color:var(--scuro); font-size:11px; white-space:nowrap; overflow:hidden; }
+.binario { position:relative; margin:5px 8px; background:#131315; border-radius:6px; cursor:pointer; }
+.binario .registrato { position:absolute; top:0; bottom:0; left:0; background:rgba(63,93,128,.7); border-radius:6px; display:none; }
+.cursore { position:absolute; top:0; bottom:0; min-width:16px; background:rgba(150,150,162,.4); border:1px solid #77777f; border-radius:6px; cursor:grab; }
+.cursore:hover { background:rgba(170,170,182,.5); }
+.cursore.trascina { cursor:grabbing; background:rgba(190,190,200,.6); }
 
-.alt-s { --alt:64px; --antw:96px; } .alt-m { --alt:86px; --antw:132px; } .alt-l { --alt:112px; --antw:176px; }
-.alt-s .conti { display:none; }
+/* ---------------------------------------------------------------- Record: i marker */
+.marker { display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
+#mk-elenco { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#45454d transparent; padding:6px; }
+.mk-voce { display:grid; grid-template-columns:10px minmax(0,1fr); gap:10px; padding:7px 8px; border-radius:3px; }
+.mk-voce > i { width:8px; height:11px; border-radius:2px 2px 5px 5px; margin-top:3px; }
+.mk-voce b { display:block; font-weight:600; font-size:13px; color:var(--chiaro); overflow-wrap:anywhere; }
+.mk-voce span { display:block; font-size:12px; color:var(--scuro); }
+.mk-vuoto { color:var(--scuro); padding:12px 10px; font-size:12.5px; line-height:1.5; }
+.mk-scatola { border-top:1px solid var(--linea); padding:12px; display:grid; gap:9px; }
+.marker-testo { width:100%; height:32px; }
+.colori { display:flex; gap:5px; }
+.colori button { flex:1; height:20px; border-radius:3px; border:1px solid rgba(0,0,0,.5); padding:0; }
+.colori button.si { outline:2px solid var(--chiaro); outline-offset:1px; }
+.tasto-marker { height:38px; border-radius:5px; border:1px solid #6c6c76; background:#5a5a63; color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:9px; }
+.tasto-marker i { width:8px; height:11px; border-radius:2px 2px 5px 5px; }
+.tasto-marker kbd { font:600 11px "Segoe UI"; background:#0004; border-radius:3px; padding:1px 6px; }
+.tasto-marker:disabled { opacity:.45; cursor:default; }
+#mk-ultimi { display:none; }
 
-/* monitor più stretti, fino a 1280: si stringono trasporto e risorse, non le impostazioni */
-@media (max-width:1500px) {
-  .alto { grid-template-columns:1fr 410px 320px; }
-  .ispettore { grid-template-columns:repeat(2, 88px minmax(0,1fr)); }
-  /* il pannello Sistema scende sotto, in una striscia sola */
-  .alto > .pannello:nth-child(4) { grid-column:1 / -1; flex-direction:row; }
-  .alto > .pannello:nth-child(4) > h2 { height:auto; border-bottom:0; border-right:1px solid var(--linea); }
-  .alto .sistema { flex-direction:row; gap:24px; padding:7px 12px; }
-  .alto .voce { flex:1; grid-template-columns:auto 1fr auto; align-items:center; }
-  .alto .voce .segmenti, .alto .voce canvas { grid-column:auto; }
-  .alto .voce .val { order:3; } .alto .voce canvas { order:4; grid-column:2 / span 2; height:14px; } .alto .voce .segmenti { order:2; }
-  .fisso em, .destinazione em { display:none; }
-  .ispettore label { font-size:11px; }
-  .display .tc { font-size:31px; }
-  .display .eti { letter-spacing:.04em; }   /* «TC FROM SIGNAL · 29.97 fps DF» andava a capo a 1280 (9.80) */
-  .tasti { gap:4px; } .tasto { width:50px; }            /* a 1280 il terzo tasto, PROJECT, usciva dal pannello */
-  .misure { grid-template-columns:104px 1fr 88px; }
-  .marker-testo { width:150px !important; }
-  .strumenti .gruppo > span { display:none; }
-  .strumenti { gap:10px; }
-}
-/* sistema: processore, scheda video, memoria */
-.sistema { display:flex; flex-direction:column; gap:9px; }
-.voce { display:grid; grid-template-columns:1fr auto; gap:3px 8px; align-items:end; }
-.voce .eti { color:var(--tenue); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.voce .modello { color:var(--scuro); font-size:10.5px; margin-left:4px; }
-.voce .val { font-family:var(--mono); color:var(--chiaro); font-size:15px; line-height:1; white-space:nowrap; }
-.voce .val small { font-size:10.5px; color:var(--tenue); }
-.voce .segmenti { grid-column:span 2; }
-.voce canvas { grid-column:span 2; width:100%; height:20px; display:block; background:#141417; border-radius:2px; }
+/* ---------------------------------------------------------------- Setup */
+#p-set { grid-template-columns:320px minmax(0,1fr); }
+.passi { padding:0 0 12px; }
+.passo { display:grid; grid-template-columns:26px minmax(0,1fr); gap:11px; padding:10px 14px; align-items:center; }
+.passo > i { width:24px; height:24px; border-radius:50%; background:#22382a; color:var(--verde); display:grid; place-items:center; font-style:normal; font-weight:800; font-size:12px; }
+.passo.attento > i { background:#3a2c10; color:var(--ambra); } .passo.male > i { background:#3a1715; color:#ff9d95; } .passo.neutro > i { background:#34343a; color:var(--scuro); }
+.passo b { font-size:13px; color:var(--chiaro); } .passo small { display:block; color:var(--tenue); font-size:12px; overflow-wrap:anywhere; }
+.pronto { margin:8px 12px 0; padding:14px; border-radius:4px; background:#22352a; border:1px solid #2f5a3f; }
+.pronto.giallo { background:#352b14; border-color:#6b5320; } .pronto.rosso { background:#3a1715; border-color:#8a2a25; }
+.pronto b { font-size:13px; letter-spacing:.04em; color:var(--chiaro); } .pronto p { margin:4px 0 12px; color:var(--tenue); font-size:12.5px; }
+.pronto .piccolo { width:100%; height:36px; font-size:13.5px; }
+.griglia-setup { display:grid; grid-template-rows:auto minmax(0,1fr); gap:4px; min-height:0; min-width:0; }
+.griglia-setup .larga { display:grid; grid-template-rows:auto minmax(0,1fr); overflow:hidden; }
+.ispettore { display:grid; grid-template-columns:repeat(2, 122px minmax(0,1fr)); gap:8px 12px; align-items:center; }
+@media (min-width:1700px) { .ispettore { grid-template-columns:repeat(3, 122px minmax(0,1fr)); } }
+.ispettore label { color:var(--tenue); white-space:nowrap; font-size:12.5px; }
+select, input[type=text] { background:var(--campo); border:1px solid #0b0b0c; border-radius:4px; padding:3px 9px; height:30px; width:100%; min-width:0; }
+select:focus, input:focus, textarea:focus { outline:none; border-color:var(--arancio); }
+select:disabled, input:disabled { color:#77777f; }
+.fisso { height:30px; display:flex; align-items:center; color:var(--testo); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fisso em { font-style:normal; color:var(--scuro); margin-left:8px; font-size:12px; }
+.fisso.male { color:#ff9d95; }
+.con-tasto { display:flex; gap:6px; min-width:0; align-items:center; }
+.con-tasto button { flex:none; }
+.attrezzi { display:grid; gap:12px; }
+.attrezzi .fila { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.attrezzi p { margin:0; color:var(--scuro); font-size:12px; }
+#setup { flex:1; min-width:150px; }
+.tabella { overflow:auto; scrollbar-width:thin; scrollbar-color:#45454d transparent; min-height:0; }
+table.elenco { border-collapse:collapse; width:100%; font-size:12.5px; }
+.elenco th { font-size:11.5px; font-weight:600; color:var(--tenue); text-align:left; padding:7px 10px; border-bottom:1px solid var(--linea); white-space:nowrap; position:sticky; top:0; background:var(--testata); }
+.elenco td { padding:6px 10px; border-bottom:1px solid #17171a; white-space:nowrap; }
+.elenco td.d { color:var(--scuro); } .elenco td b { font-weight:600; color:var(--chiaro); }
+.elenco .male { color:#ff9d95; } .elenco .attento { color:var(--ambra); }
+.scheda > h2 .aiuto-tab { margin-left:auto; overflow:hidden; text-overflow:ellipsis; }
+
+/* ---------------------------------------------------------------- Review */
+#p-rev { grid-template-columns:minmax(0,1fr) 420px; }
+.rev-tracce { display:grid; grid-template-rows:auto minmax(0,1fr); overflow:hidden; }
+.rev-lato { display:grid; gap:4px; align-content:start; overflow-y:auto; scrollbar-width:none; }
+.rev-titolo { padding:16px; }
+.rev-titolo h3 { margin:0; font-size:17px; color:var(--chiaro); overflow-wrap:anywhere; }
+.rev-titolo p { margin:4px 0 0; color:var(--scuro); font-size:12px; overflow-wrap:anywhere; }
+.numeri { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:14px; }
+.numeri div { border-radius:4px; padding:9px 10px; background:#323238; }
+.numeri span { font-size:11.5px; color:var(--tenue); } .numeri b { display:block; font-size:17px; font-weight:600; color:var(--chiaro); margin-top:2px; white-space:nowrap; }
+.azioni { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.azioni .piccolo { height:34px; }
+.rev-vuoto { padding:30px 20px; color:var(--tenue); font-size:13px; line-height:1.6; }
 /* destinazione e selettore */
 .ispettore .destinazione { grid-column:2 / -1; display:flex; align-items:center; gap:8px; height:26px; padding:0 4px 0 8px; text-align:left;
   background:var(--campo); border:1px solid var(--linea2); border-radius:3px; cursor:pointer; min-width:0; }
@@ -328,70 +402,79 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
 .avviso { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:30; max-width:70vw; padding:9px 16px; border-radius:4px;
           background:#3a1518; border:1px solid #8a2a2e; color:#ffd0d2; box-shadow:0 10px 30px rgba(0,0,0,.6); display:none; }
 .avviso.aperto { display:block; }
-/* la barra di scorrimento della timeline, incollata in fondo allo schermo */
-.scorrimento { position:sticky; bottom:0; z-index:5; height:20px; background:#252529; border-top:1px solid var(--linea); }
-.scorrimento .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; padding:0 10px; color:var(--tenue); font-size:10.5px; }
-.binario { position:relative; margin:4px 8px; background:#16161a; border-radius:6px; cursor:pointer; }
-.binario .registrato { position:absolute; top:0; bottom:0; left:0; background:rgba(125,95,179,.45); border-radius:6px; display:none; }
-.cursore { position:absolute; top:0; bottom:0; min-width:16px; background:rgba(150,150,162,.45); border:1px solid #77777f; border-radius:6px; cursor:grab; }
-.cursore:hover { background:rgba(170,170,182,.55); }
-.cursore.trascina { cursor:grabbing; background:rgba(190,190,200,.6); }
-.piede { display:flex; gap:18px; padding:8px 12px 20px; color:var(--scuro); font-size:11px; flex-wrap:wrap; }
+
+/* ---------------------------------------------------------------- tasti e finestre nella grafica nuova */
+.piccolo { height:28px; padding:0 12px; border-radius:4px; border:1px solid #4c4c54; background:#3b3b42; color:#e4e4e7; font-size:12.5px; font-weight:600; white-space:nowrap; }
+.piccolo:hover:not(:disabled) { border-color:#6c6c76; }
+.piccolo.primario { background:#5a5a63; border-color:#6c6c76; color:#fff; }
+.piccolo.pericolo { background:#8a2a25; border-color:#b3352d; color:#fff; }
+.piccolo:disabled { opacity:.45; cursor:default; }
+#rp-apri.invito { border-color:var(--ambra); color:var(--ambra); }
+.ispettore .destinazione { height:30px; border-color:#0b0b0c; border-radius:4px; }
+.destinazione:disabled { opacity:.6; cursor:default; }
+.destinazione #dest-percorso { font-family:inherit; }
+.destinazione b { background:#3b3b42; border:1px solid #4c4c54; border-radius:3px; }
+.velo { background:rgba(0,0,0,.66); }
+.finestra { border:1px solid #060607; border-radius:6px; }
+.finestra > h2 { height:38px; font-size:13px; }
+.finestra > h2 .tenue { font-size:12px; }
+.ctl-corpo, .sel-sinistra, .sel-destra { font-size:13px; }
+.disco { background:#1f1f23; border-radius:4px; } .disco.si { border-color:var(--arancio); background:#243040; }
+.d-spazio i { background:#9a9aa2; } .d-nota { color:var(--ambra); } .d-nota.ok { color:var(--verde); }
+.cartelle { background:#19191c; border-radius:4px; } .cartella:hover { background:#34343a; }
+.finale b { color:#a9c6ee; }
+.briciole { font-family:inherit; } .briciole a:hover { color:#a9c6ee; }
+#rp-anteprima { font:12px/1.45 Consolas, monospace; background:#141416; border-radius:4px; }
+#rp-nota { border-radius:4px; }
+.hd-tab { font-size:12.5px; }
+#dom-testo { white-space:pre-line; margin:0; }
+#dom-campo { margin-top:12px; }
+.avviso { background:#3a1715; border:1px solid #8a2a25; color:#ffd9d6; border-radius:5px; font-size:13px; }
 .spento { position:fixed; inset:0; z-index:40; background:var(--fondo); display:none; place-items:center; color:var(--tenue); font-size:14px; }
 .spento.aperto { display:grid; }
+/* finestre più strette: si stringono le colonne di lato, i nomi delle tracce restano interi */
+@media (max-width:1560px) { #p-rec { grid-template-columns:310px minmax(0,1fr) 260px; } #tc { font-size:48px; } .centro-su .gruppo > span { display:none; }
+  .top { grid-template-columns:auto auto minmax(0,1fr); } .marchio div span { display:none; } .riga-conti { display:none; } #p-set { grid-template-columns:290px minmax(0,1fr); } #flusso-piccolo { display:none; } }
+@media (max-width:1360px) { #p-rec { grid-template-columns:290px minmax(0,1fr) 230px; } #tc { font-size:44px; } .eroe { padding:13px; } }
 </style>
 </head>
 <body>
 
-<div class="titolo">
-  <div class="marchio"><span><b>●</b>Multicam Timecode Sync Recorder<span class="versione num" id="versione"></span></span><button class="collega" id="vai-controllo" title="System check">System check</button></div>
-  <div class="progetto">Recording <b id="nome-reg">—</b></div>
+<div class="app">
+<header class="top">
+  <div class="marchio"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#7da2d6"/><g fill="#0f1722"><rect x="6.5" y="9" width="19" height="3.2" rx="1.6"/><rect x="6.5" y="14.4" width="12" height="3.2" rx="1.6" opacity=".7"/><rect x="6.5" y="19.8" width="16" height="3.2" rx="1.6" opacity=".5"/></g><circle cx="21" cy="16" r="3.4" fill="#e8443a" stroke="#7da2d6" stroke-width="1.6"/></svg><div><b>mtsrec</b><span>Multicam Timecode Sync Recorder</span></div><em class="versione num" id="versione"></em></div>
+  <nav class="pagine" id="pagine"><button data-p="set" title="Before the show: destination, format, devices, inputs"><i>1</i>Setup</button><button data-p="rec" class="on" title="During the show"><i>2</i>Record</button><button data-p="rev" title="After the show: the last recording and its project"><i>3</i>Review</button></nav>
   <div class="destra">
     <span class="spia" id="sp-atem"><i></i>ATEM</span><span class="spia" id="sp-hd"><i></i>HyperDeck</span><span class="spia" id="sp-mappa"><i></i>Input map</span><span class="spia" id="sp-porta"><i></i>:8811</span>
-    <span class="num tenue" id="orologio"></span>
+    <span class="num" id="orologio"></span>
+    <button class="collega" id="vai-controllo" title="System check">System check</button>
+    <button class="collega" id="aiuto" title="Opens the user manual (PDF). F1 does the same">Help</button>
     <button class="collega" id="esci" title="Quits the recorder">Quit</button>
   </div>
-</div>
+</header>
 
-<section class="alto">
-  <div class="pannello">
-    <h2>Settings <span class="lucchetto">🔒 locked while recording</span></h2>
-    <div class="corpo ispettore">
-      <label>Destination</label><button class="destinazione" id="dest" title="Choose drive and folder"><span class="icona-disco" id="dest-icona"></span><span id="dest-percorso">choose where to record</span><em id="dest-info"></em><b>Choose…</b></button>
-      <label>Format</label><div class="fisso" id="modo" title="The recorder records what arrives: no conversion, no scaling. The format comes from the ATEM, or from the signal when there is no ATEM.">--<em></em></div>
-      <label>Codec</label><select id="mbit"></select>
-      <label>SDI audio</label><select id="audio"><option value="2">2 channels</option><option value="8">8 channels</option><option value="16">16 channels</option></select>
-      <label>Expected duration</label><select id="limite"><option value="0">until STOP</option><option value="2">2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="6">6 hours</option></select>
-      <label>Broadcast WAV</label><div class="fisso">yes<em>always alongside the MOV files</em></div>
-      <label>Resolve project</label><select id="resolve"><option value="true">yes, when recording ends</option><option value="false">no</option></select>
-      <label>ATEM</label><div class="con-tasto"><input type="text" id="atem" placeholder="none"><button class="piccolo" id="leggi-nomi" title="Reads the names of the sources on the aux outputs from the ATEM again">Names</button></div>
-      <label>HyperDeck</label><input type="text" id="hyperdeck" placeholder="none">
-      <label>Delays</label><div class="con-tasto"><div class="fisso" id="rit-info" title="Each input's delay is set on its track, in frames">tick “meas.” on the tracks</div><button class="piccolo" id="misura-ritardi" title="Cuts between bars and black on the ATEM program to measure the delay of the ticked inputs: off air only">Measure</button></div>
-      <label>Input map</label><div class="con-tasto"><div class="fisso" id="map-info" title="Which ATEM aux output is cabled to each DeckLink input">none</div><button class="piccolo" id="mappa-ingressi" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map</button></div>
-    </div>
-  </div>
-
-  <div class="pannello">
-    <h2>Transport</h2>
-    <div class="corpo trasporto">
-      <div class="display"><div class="eti"><span id="eti-tc">TIMECODE · 25 fps</span><span id="stato-rec">READY</span></div><div class="tc" id="tc">--:--:--:--</div></div>
-      <div class="tasti">
-        <button class="tasto" id="rec" title="Starts recording"><span class="ic rec"></span><span class="sotto">REC</span></button>
-        <button class="tasto" id="stop" title="Hold for one second"><span class="ic stop"></span><span class="sotto">STOP</span></button>
-        <button class="tasto" id="progetto" title="Builds the Resolve project of the last recording: opens Resolve if it is closed" disabled><span class="ic prj"></span><span class="sotto">PROJECT</span></button>
+<!-- ============================================================ RECORD -->
+<section class="pagina on" id="p-rec">
+  <aside class="colonna">
+    <div class="scheda eroe">
+      <div class="eroe-su"><span id="stato-rec">READY</span><span id="eroe-formato"></span></div>
+      <div class="num" id="tc">--:--:--:--</div>
+      <div id="eti-tc">TIMECODE · 25 fps</div>
+      <button class="rec-grande" id="rec" title="Starts recording"><i></i><span></span></button>
+      <div class="due">
+        <button class="secondo" id="stop" title="Hold for one second"><i></i>Stop <small>hold 1 s</small></button>
+        <button class="secondo" id="progetto" title="Builds the Resolve project of the last recording: opens Resolve if it is closed" disabled>Project</button>
       </div>
       <div class="tempi">
-        <div><div class="eti">START</div><div class="num" id="partenza">--:--:--:--</div></div>
-        <div><div class="eti">DURATION</div><div class="num" id="durata">00:00:00:00</div></div>
-        <div><div class="eti">TIME LEFT</div><div class="num" id="autonomia">--</div></div>
+        <div><div class="eti">Start</div><div class="num" id="partenza">--:--:--:--</div></div>
+        <div><div class="eti">Duration</div><div class="num" id="durata">00:00:00:00</div></div>
+        <div><div class="eti">Time left</div><div class="num" id="autonomia">--</div></div>
       </div>
     </div>
-  </div>
-
-  <div class="pannello">
-    <h2>Resources</h2>
-    <div class="corpo">
-      <div class="misure">
+    <div class="stato giallo" id="stato"><i></i><div><b id="stato-testo">CONNECTING…</b><small id="stato-nota"></small></div></div>
+    <div class="scheda">
+      <h2>Resources</h2>
+      <div class="corpo"><div class="misure">
         <span class="eti">Disk write rate</span><div class="segmenti" id="s-flusso"></div><span class="val" id="flusso">--</span>
         <span class="eti" id="eti-spazio">Space used</span><div class="segmenti" id="s-spazio"></div><span class="val" id="spazio">--</span>
         <span class="eti">Disk load</span><div class="segmenti" id="s-disco"></div><span class="val" id="m-disco">--</span>
@@ -400,67 +483,122 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
         <span class="nota" id="m-cpu-nota"></span>
         <span class="eti">Tracks possible</span><div class="segmenti" id="s-max"></div><span class="val" id="m-max">--</span>
         <span class="nota" id="m-max-nota"></span>
+      </div></div>
+    </div>
+    <div class="scheda">
+      <h2>System <span>last minute</span></h2>
+      <div class="corpo sistema">
+        <div class="voce"><span class="eti">CPU<span class="modello" id="mod-cpu"></span></span><span class="val" id="v-cpu"></span><div class="segmenti" id="s-cpu-uso"></div><canvas id="g-cpu" width="240" height="20"></canvas></div>
+        <div class="voce"><span class="eti">GPU<span class="modello" id="mod-gpu"></span></span><span class="val" id="v-gpu"></span><div class="segmenti" id="s-gpu-uso"></div><canvas id="g-gpu" width="240" height="20"></canvas></div>
+        <div class="voce"><span class="eti">Memory<span class="modello" id="mod-ram"></span></span><span class="val" id="v-ram"></span><div class="segmenti" id="s-ram-uso"></div><canvas id="g-ram" width="240" height="20"></canvas></div>
       </div>
-      <div class="stato giallo" id="stato"><i></i><b id="stato-testo">CONNECTING…</b><small id="stato-nota"></small></div>
+    </div>
+    <div class="scheda">
+      <h2>Session <a data-vai="set">Change in Setup</a></h2>
+      <div class="corpo"><div class="kvs" id="sessione"></div></div>
+    </div>
+  </aside>
+
+  <div class="scheda centro">
+    <div class="centro-su">
+      <h3>Inputs</h3><span class="conta"><span id="conta-tracce"></span><span class="num" id="flusso-piccolo"></span></span>
+      <span class="sp"></span>
+      <div class="gruppo"><span>View</span><div class="segmentato" id="vista"><button data-v="autonomia" class="si">Full time left</button><button data-v="registrato">Recorded</button><button data-v="dieci">Last 10 min</button></div></div>
+      <div class="gruppo"><span>Rows</span><div class="segmentato" id="altezza"><button data-v="s">S</button><button data-v="m" class="si">M</button><button data-v="l">L</button></div></div>
+      <div class="gruppo"><div class="segmentato"><button id="finestrelle" class="si">Thumbnails</button></div></div>
+    </div>
+    <div class="riga righello">
+      <div class="angolo">Alt + wheel zooms · Shift + wheel scrolls</div>
+      <div class="scala" id="scala"></div>
+    </div>
+    <div id="tracce" class="alt-m"></div>
+    <div class="aggiungi" id="aggiungi">
+      <select id="agg-porta" title="A free input of this machine"></select>
+      <button class="piccolo primario" id="agg">+ Add track</button>
+      <button class="piccolo" id="agg-tutte" title="Adds every free DeckLink input of this computer: first those the input map links to an ATEM aux, in aux order, then the others">Add all inputs</button>
+      <button class="piccolo" id="agg-mappa" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map inputs…</button>
+      <span class="nota-agg" id="agg-nota"></span>
+    </div>
+    <div class="riga scorrimento">
+      <div class="angolo num" id="zoom-info"></div>
+      <div class="binario" id="binario" title="Drag to scroll the timeline, click to jump to a point, double-click for the full view"><div class="registrato" id="barra-reg"></div><div class="cursore" id="cursore"></div></div>
     </div>
   </div>
 
-  <div class="pannello">
-    <h2>System <span class="tenue" style="font-weight:400">last minute</span></h2>
-    <div class="corpo sistema">
-      <div class="voce"><span class="eti">CPU<span class="modello" id="mod-cpu"></span></span><span class="val" id="v-cpu"></span><div class="segmenti" id="s-cpu-uso"></div><canvas id="g-cpu" width="240" height="20"></canvas></div>
-      <div class="voce"><span class="eti">GPU<span class="modello" id="mod-gpu"></span></span><span class="val" id="v-gpu"></span><div class="segmenti" id="s-gpu-uso"></div><canvas id="g-gpu" width="240" height="20"></canvas></div>
-      <div class="voce"><span class="eti">Memory<span class="modello" id="mod-ram"></span></span><span class="val" id="v-ram"></span><div class="segmenti" id="s-ram-uso"></div><canvas id="g-ram" width="240" height="20"></canvas></div>
+  <aside class="scheda marker">
+    <h2>Markers <span class="num" id="mk-conta"></span></h2>
+    <div id="mk-elenco"></div>
+    <div class="mk-scatola">
+      <input type="text" class="marker-testo" id="mk-testo" placeholder="Marker text, Enter to add">
+      <div class="colori" id="mk-colori"></div>
+      <button class="tasto-marker" id="mk" title="Marker on the file timecode: also with the M key"><i id="mk-ic"></i>Add marker<kbd>M</kbd></button>
+    </div>
+    <div id="mk-ultimi"></div>
+  </aside>
+</section>
+
+<!-- ============================================================ SETUP -->
+<section class="pagina" id="p-set">
+  <aside class="colonna">
+    <div class="scheda passi">
+      <h2>Before the show</h2>
+      <div id="passi"></div>
+      <div class="pronto" id="pronto"><b id="pronto-testo"></b><p id="pronto-nota"></p><button class="piccolo primario" data-vai="rec">Go to Record →</button></div>
+    </div>
+    <div class="scheda">
+      <h2>Setups</h2>
+      <div class="corpo attrezzi">
+        <div class="fila"><select id="setup" title="Saved recording setups: settings and tracks"></select></div>
+        <div class="fila"><button class="piccolo" id="setup-salva" title="Save the current settings and tracks into this setup">Save</button>
+          <button class="piccolo" id="setup-come" title="Save the current settings and tracks as a new setup">Save as…</button>
+          <button class="piccolo" id="setup-cancella" title="Delete this setup">Delete</button></div>
+        <p>A setup keeps the settings and the tracks under a name, for example one per venue.</p>
+      </div>
+    </div>
+  </aside>
+  <div class="griglia-setup">
+    <div class="scheda pannello">
+      <h2>Settings <span class="lucchetto">LOCKED WHILE RECORDING</span></h2>
+      <div class="corpo ispettore">
+        <label>Destination</label><button class="destinazione" id="dest" title="Choose drive and folder"><span class="icona-disco" id="dest-icona"></span><span id="dest-percorso">choose where to record</span><em id="dest-info"></em><b>Choose…</b></button>
+        <label>Format</label><div class="fisso" id="modo" title="The recorder records what arrives: no conversion, no scaling. The format comes from the ATEM, or from the signal when there is no ATEM.">--<em></em></div>
+        <label>Codec</label><select id="mbit"></select>
+        <label>SDI audio</label><select id="audio"><option value="2">2 channels</option><option value="8">8 channels</option><option value="16">16 channels</option></select>
+        <label>Expected duration</label><select id="limite"><option value="0">until STOP</option><option value="2">2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="6">6 hours</option></select>
+        <label>Broadcast WAV</label><div class="fisso">yes<em>always alongside the MOV files</em></div>
+        <label>Resolve project</label><select id="resolve"><option value="true">yes, when recording ends</option><option value="false">no</option></select>
+        <label>ATEM</label><div class="con-tasto"><input type="text" id="atem" placeholder="none"><button class="piccolo" id="leggi-nomi" title="Reads the names of the sources on the aux outputs from the ATEM again">Names</button></div>
+        <label>HyperDeck</label><input type="text" id="hyperdeck" placeholder="none">
+        <label>Delays</label><div class="con-tasto"><div class="fisso" id="rit-info" title="Each input's delay is set in the Inputs table below, in frames">tick “meas.” in the Inputs table</div><button class="piccolo" id="misura-ritardi" title="Cuts between bars and black on the ATEM program to measure the delay of the ticked inputs: off air only">Measure</button></div>
+        <label>Input map</label><div class="con-tasto"><div class="fisso" id="map-info" title="Which ATEM aux output is cabled to each DeckLink input">none</div><button class="piccolo" id="mappa-ingressi" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map</button></div>
+      </div>
+    </div>
+    <div class="scheda larga">
+      <h2>Inputs <span id="tab-conta"></span><span class="aiuto-tab">Tracks are added, named and armed in Record. The delay of each input is set here.</span></h2>
+      <div class="tabella"><table class="elenco" id="tab-ingressi"></table></div>
     </div>
   </div>
 </section>
 
-<div class="strumenti">
-  <div class="gruppo"><span>Setup</span><select id="setup" title="Saved recording setups: settings and tracks"></select>
-    <button class="piccolo" id="setup-salva" title="Save the current settings and tracks into this setup">Save</button>
-    <button class="piccolo" id="setup-come" title="Save the current settings and tracks as a new setup">Save as…</button>
-    <button class="piccolo" id="setup-cancella" title="Delete this setup">Delete</button></div>
-  <div class="gruppo"><button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project">HyperDeck clips…</button></div>
-  <div class="gruppo"><button class="piccolo" id="aiuto" title="Opens the user manual (PDF). F1 does the same">Help</button></div>
-  <div class="gruppo"><button class="piccolo" id="rp-apri" title="Creates the beta test report on your Desktop: you see what is inside, then you send it to the developer">Test report…</button></div>
-  <span class="separa"></span>
-  <div class="gruppo"><span>Height</span><div class="segmentato" id="altezza"><button data-v="s">S</button><button data-v="m" class="si">M</button><button data-v="l">L</button></div></div>
-  <div class="gruppo"><span>View</span><div class="segmentato" id="vista"><button data-v="autonomia" class="si">Full time left</button><button data-v="registrato">Recorded</button><button data-v="dieci">Last 10 min</button></div></div>
-  <div class="gruppo"><div class="segmentato"><button id="finestrelle" class="si">Thumbnails</button></div></div>
-  <span class="separa"></span>
-  <div class="gruppo">
-    <input type="text" class="marker-testo" id="mk-testo" placeholder="Marker text, Enter to add">
-    <div class="colori" id="mk-colori"></div>
-    <button class="tasto-marker" id="mk" title="Marker on the file timecode: also with the M key"><i id="mk-ic"></i>MARKER</button>
-    <span class="num tenue" id="mk-conta"></span>
+<!-- ============================================================ REVIEW -->
+<section class="pagina" id="p-rev">
+  <div class="scheda rev-tracce">
+    <h2>Last recording <span id="rev-conta"></span></h2>
+    <div class="tabella" id="rev-corpo"></div>
   </div>
-  <div class="ultimi" id="mk-ultimi"></div>
-</div>
-
-<div class="riga righello">
-  <div class="angolo"><span id="conta-tracce"></span><span class="num" id="flusso-piccolo"></span></div>
-  <div class="scala" id="scala"></div>
-</div>
-<div id="tracce" class="alt-m"></div>
-<div class="aggiungi" id="aggiungi">
-  <select id="agg-porta" title="A free input of this machine"></select>
-  <button class="piccolo primario" id="agg">+ Add track</button>
-  <button class="piccolo" id="agg-tutte" title="Adds every free DeckLink input of this computer: first those the input map links to an ATEM aux, in aux order, then the others">Add all inputs</button>
-  <button class="piccolo" id="agg-mappa" title="Finds which ATEM aux output is cabled to each DeckLink input: switches the aux outputs for a moment, off air only">Map inputs…</button>
-  <span class="nota-agg" id="agg-nota"></span>
-</div>
-<div class="riga scorrimento">
-  <div class="angolo num" id="zoom-info"></div>
-  <div class="binario" id="binario" title="Drag to scroll the timeline, click to jump to a point, double-click for the full view"><div class="registrato" id="barra-reg"></div><div class="cursore" id="cursore"></div></div>
-</div>
-
-<div class="piede">
-  <span>Tracks: + Add track under the list, up to what this machine handles; × on the track number removes it. R: the track is recorded. Setup saves settings and tracks under a name.</span>
-  <span>The file name is the name of the source on the aux, read from the ATEM: type over it to change it, before REC.</span>
-  <span>Levels in peak dBFS on the ATEM mixer scale: green up to −20, yellow up to −9, then red. Audio is recorded as is, with no processing.</span>
-  <span>Thumbnails refresh in turn, never at the expense of recording.</span>
-  <span>Markers: the button, Enter in the text field or M on the keyboard; from the console, Enter.</span>
-  <span>Alt + mouse wheel on the timeline: horizontal zoom around the playhead, or around the mouse pointer if nothing has been recorded yet. Shift + mouse wheel: scrolls the timeline. Double-click on the ruler or Ctrl+Z: back to the full view. The bar at the bottom scrolls the timeline.</span>
+  <aside class="rev-lato">
+    <div class="scheda rev-titolo" id="rev-titolo"></div>
+    <div class="scheda">
+      <h2>After the show</h2>
+      <div class="corpo azioni">
+        <button class="piccolo primario" id="progetto2" title="Builds the Resolve project of the last recording: opens Resolve if it is closed">Build Resolve project</button>
+        <button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project">HyperDeck clips…</button>
+        <button class="piccolo" id="rp-apri" title="Creates the beta test report on your Desktop: you see what is inside, then you send it to the developer">Test report…</button>
+        <button class="piccolo" data-vai="rec">Back to Record</button>
+      </div>
+    </div>
+  </aside>
+</section>
 </div>
 
 <div class="velo" id="sel">
@@ -550,12 +688,19 @@ select:disabled, input:disabled { color:#77777f; border-color:#2a2a30; }
 <div class="velo" id="prj">
   <div class="finestra" style="width:min(620px,92vw)">
     <h2>Resolve project not built <span class="tenue">the recorded files are fine</span></h2>
-    <div class="ctl-corpo"><p id="prj-motivo"></p><p class="tenue">Build it again with the PROJECT button next to REC and STOP, now or later: if Resolve is closed it is opened automatically.</p></div>
+    <div class="ctl-corpo"><p id="prj-motivo"></p><p class="tenue">Build it again with the Project button under REC, or with Build Resolve project in Review, now or later: if Resolve is closed it is opened automatically.</p></div>
     <div class="sel-piede"><button class="piccolo" id="prj-chiudi">Later</button><button class="piccolo primario" id="prj-crea">Build project</button></div>
   </div>
 </div>
 
 <div class="avviso" id="avviso"></div>
+<div class="velo" id="dom" style="z-index:30">
+  <div class="finestra" style="width:min(560px,94vw)">
+    <h2 id="dom-titolo"></h2>
+    <div class="ctl-corpo"><p id="dom-testo"></p><input type="text" id="dom-campo" spellcheck="false"></div>
+    <div class="sel-piede"><button class="piccolo" id="dom-no">Cancel</button><button class="piccolo primario" id="dom-si">OK</button></div>
+  </div>
+</div>
 <div class="spento" id="spento">Recorder closed. To open it again, start Multicam Timecode Sync Recorder from the Start menu.</div>
 
 <script>
@@ -718,20 +863,21 @@ function costruisci() {
   if (!presenti.length) box.innerHTML = `<div class="vuoto-tracce">No tracks yet: add them with <b>+ Add track</b> below, or load a Setup.</div>`;
   righe = presenti.map((tr, i) => {
     const d = S.ingressi.find(x => x.porta === tr.porta);
-    const r = { n:d.n, d, livelli:[], toccato:!!tr.nome, picchi:[{}, {}] };
+    const r = { n:d.n, d, livelli:[], toccato:!!tr.nome, picchi:[{}, {}], mostrati:[0, 0] };
     const el = document.createElement("div");
     el.className = "riga traccia";
     el.innerHTML = `
       <div class="testa">
         <div class="colore-traccia"></div>
         <div class="numero">${i + 1}<button class="togli" title="Remove this track">×</button></div>
-        <div class="anteprima"><canvas width="192" height="108"></canvas><div class="vuota">NO SIGNAL</div></div>
+        <div class="anteprima"><canvas width="192" height="108"></canvas><div class="vuota">NO SIGNAL</div><span class="tally"></span></div>
         <div class="info">
-          <div class="nome"><input type="text" spellcheck="false" title="File name: change it before REC"><small>.mov</small><span class="tally"></span></div>
+          <div class="nome"><input type="text" spellcheck="false" title="File name: change it before REC"><small>.mov</small><span class="aux"></span><span class="src"></span></div>
           <div class="via"></div>
-          <div class="tcriga"><span class="num tc-traccia"></span><span class="origine"></span></div>
-          <div class="riga-conti"><span class="rit" title="How many frames late this input arrives: subtracted from the timecode of its files">delay <input type="number" class="rit-n" min="0" max="60" step="1"> f
-            <label title="To be measured with the Measure button in Settings"><input type="checkbox" class="rit-m">meas.</label><span class="esito"></span></span><div class="conti"></div></div>
+          <div class="tcriga"><span class="num tc-traccia"></span><span class="origine"></span><span class="senza-mappa"></span><span class="persi"></span></div>
+          <div class="riga-conti"><div class="conti"></div></div>
+          <span class="rit" title="How many frames late this input arrives: subtracted from the timecode of its files"><input type="number" class="rit-n" min="0" max="60" step="1"> f
+            <label title="Tick the inputs to measure, then press Measure in Settings"><input type="checkbox" class="rit-m">meas.</label><span class="esito"></span></span>
         </div>
         <div class="lati"><button class="arma" title="Record this track">R</button><div class="vu"><i><b></b></i><i><b></b></i></div></div>
       </div>
@@ -759,6 +905,7 @@ function costruisci() {
     };
     r.ritN = el.querySelector(".rit-n");
     r.ritM = el.querySelector(".rit-m");
+    r.rit = el.querySelector(".rit"); r.rit.remove();
     r.ritM.checked = (leggi("misura-ritardi", "") || "").split("|").includes(d.porta);
     r.ritM.onchange = () => scrivi("misura-ritardi", righe.filter(x => x.ritM.checked).map(x => x.d.porta).join("|"));
     r.ritN.onchange = async () => {
@@ -776,6 +923,7 @@ function costruisci() {
     box.appendChild(el);
     return r;
   });
+  versioneRighe++; tPagine = 0; tAdatta = 0;
 }
 // Una volta sola, per chi aveva già il registratore: le R scelte prima, tenute nel browser, diventano la lista.
 // Dopo, una lista vuota resta vuota: è il programma che si apre senza tracce.
@@ -865,19 +1013,182 @@ async function salvaSetup(nome) {
   avviso("Setup “" + nome + "” saved: settings and " + listaTracce().length + " tracks");
 }
 $("setup-salva").onclick = () => { const v = $("setup").value; if (v && !inRegistrazione()) salvaSetup(v); };
-$("setup-come").onclick = () => {
+$("setup-come").onclick = async () => {
   if (inRegistrazione()) return;
-  const n = (prompt("Name of the new setup (e.g. Concert 8 cameras):", imp().setup || "") || "").trim();
+  const n = ((await domanda("Save setup as", "Name of the new setup, for example Concert 8 cameras.", { campo:imp().setup || "", si:"Save" })) || "").trim();
   if (!n) return;
-  if (elencoSetup.includes(n) && !confirm("Setup “" + n + "” already exists: replace it?")) return;
+  if (elencoSetup.includes(n) && !(await domanda("Replace setup", "Setup “" + n + "” already exists: replace it?", { si:"Replace" }))) return;
   salvaSetup(n);
 };
 $("setup-cancella").onclick = async () => {
   const v = $("setup").value;
-  if (!v || inRegistrazione() || !confirm("Delete setup “" + v + "”? The current settings and tracks stay as they are.")) return;
+  if (!v || inRegistrazione() || !(await domanda("Delete setup", "Delete setup “" + v + "”? The current settings and tracks stay as they are.", { si:"Delete", pericolo:true }))) return;
   dopoSetup(await chiedi("/setup?cancella=" + enc(v)));
 };
 caricaElencoSetup();
+
+// ============================================================ beta 11: tre pagine e colonna delle tracce su misura
+let nomeRegistrazione = "", paginaOra = "rec", versioneRighe = 0, tabVersione = -1, tabUltima = "";
+// «DeckLink Duo 2 (4)» → la scheda e il suo ingresso, da mostrare separati e per esteso
+const schedaEIngresso = p => { const m = /^(.*?)\s*\((\d+)\)\s*$/.exec(p || ""); return m ? [m[1], m[2]] : [p || "", ""]; };
+function vai(p) {
+  paginaOra = p;
+  document.querySelectorAll(".pagina").forEach(e => e.classList.toggle("on", e.id === "p-" + p));
+  document.querySelectorAll("#pagine button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  scrivi("pagina", p);
+  tAdatta = 0; tPagine = 0;
+  if (S) aggiorna();
+}
+document.querySelectorAll("#pagine button").forEach(b => b.onclick = () => vai(b.dataset.p));
+document.querySelectorAll("[data-vai]").forEach(b => b.onclick = () => vai(b.dataset.vai));
+$("progetto2").onclick = () => $("progetto").click();
+
+// Domande e conferme nella grafica del programma, al posto delle finestre del browser (confirm e prompt).
+// Rende true o false; col campo di testo rende il testo scritto, o null se si annulla. Invio conferma, Esc annulla.
+function domanda(titolo, testo, o = {}) {
+  return new Promise(fine => {
+    const v = $("dom"), campo = $("dom-campo"), conCampo = o.campo !== undefined;
+    $("dom-titolo").textContent = titolo; $("dom-testo").textContent = testo;
+    campo.style.display = conCampo ? "" : "none"; campo.value = o.campo || "";
+    $("dom-si").textContent = o.si || "OK"; $("dom-si").className = "piccolo " + (o.pericolo ? "pericolo" : "primario");
+    $("dom-no").textContent = o.no || "Cancel";
+    const chiudi = r => { v.classList.remove("aperto"); document.removeEventListener("keydown", tasti, true); fine(r); };
+    const tasti = e => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); chiudi(conCampo ? null : false); }
+      else if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); chiudi(conCampo ? campo.value : true); }
+      else if (!conCampo) e.stopPropagation();          // con una domanda aperta M non mette marker
+    };
+    $("dom-si").onclick = () => chiudi(conCampo ? campo.value : true);
+    $("dom-no").onclick = () => chiudi(conCampo ? null : false);
+    document.addEventListener("keydown", tasti, true);
+    v.classList.add("aperto");
+    if (conCampo) { campo.focus(); campo.select(); } else $("dom-si").focus();
+  });
+}
+
+// La colonna delle tracce è larga quanto serve al testo più lungo: nessun nome viene troncato. Si misura il testo vero
+// (un intervallo), non la casella: scrollWidth non scende mai sotto la larghezza della casella.
+let tAdatta = 0;
+function adatta() {
+  const ora = performance.now();
+  if (ora - tAdatta < 900 || !righe.length) return;
+  const box = $("tracce");
+  if (!box.offsetWidth) return;
+  tAdatta = ora;
+  const g = document.createRange();
+  const larga = e => {
+    if (!e.getClientRects().length) return 0;
+    if (/^(INPUT|SELECT|BUTTON)$/.test(e.tagName)) return e.getBoundingClientRect().width;
+    const cs = getComputedStyle(e);
+    if (e.matches(".nome, .tcriga, .riga-conti")) {
+      const k = [...e.children].filter(c => c.getClientRects().length);
+      return k.reduce((a, c) => a + larga(c) + (parseFloat(getComputedStyle(c).marginLeft) > 0 ? 0 : Math.max(0, parseFloat(getComputedStyle(c).marginLeft) || 0)), 0)
+        + (parseFloat(cs.columnGap) || 0) * Math.max(0, k.length - 1);
+    }
+    g.selectNodeContents(e);
+    return Math.max(g.getBoundingClientRect().width, parseFloat(cs.minWidth) || 0);
+  };
+  let w = 0;
+  righe.forEach(r => r.el.querySelectorAll(".info > *").forEach(e => { w = Math.max(w, larga(e)); }));
+  const testa = righe[0].el.querySelector(".testa"), info = testa.querySelector(".info");
+  const fisso = testa.getBoundingClientRect().width - info.getBoundingClientRect().width;
+  const L = Math.round(Math.min(860, Math.max(360, fisso + w + 24)));
+  const st = document.documentElement.style;
+  if (Math.abs(L - parseFloat(st.getPropertyValue("--testate") || 0)) >= 2) st.setProperty("--testate", L + "px");
+  st.setProperty("--sb", (box.offsetWidth - box.clientWidth) + "px");
+}
+addEventListener("resize", () => { tAdatta = 0; });
+
+let tPagine = 0, eraOccupato = false;
+function pagine() {
+  const i = imp(), rec = inRegistrazione();
+  const occupato = !!((S.mappa || {}).in_corso || (S.ritardi || {}).in_corso);
+  if (eraOccupato && !occupato && i.atem) chiedi("/nomi?leggi=1").catch(() => {});
+  eraOccupato = occupato;
+  $("eroe-formato").textContent = MODO + " · " + nomeCodec(i.mbit || "");
+  $("rec").classList.toggle("reg", rec);
+  $("progetto2").disabled = $("progetto").disabled;
+  const ora = performance.now();
+  if (ora - tPagine < 900) return;
+  tPagine = ora;
+  // --- la scheda Session, in Record
+  const F = S.formato || {}, dest = $("dest-percorso").textContent;
+  const voci = [...(S.cartella || i.nome ? [["Name", nomeRegistrazione]] : []), ["Destination", dest],
+    ["Format", MODO + (CAD.drop ? " drop-frame" : "") + " · " + nomeCodec(i.mbit || "")],
+    ["Audio", (i.audio || 2) + " channels + Broadcast WAV"],
+    ["Duration", $("limite").selectedOptions[0] ? $("limite").selectedOptions[0].textContent : ""],
+    ["Resolve project", String(i.resolve) === "false" ? "no" : "when recording ends"], ...(i.setup ? [["Setup", i.setup]] : [])];
+  $("sessione").innerHTML = voci.map(([k, v]) => `<span>${k}</span><b>${html(v)}</b>`).join("");
+  // --- i passi di Setup
+  const conAux = S.ingressi.filter(d => d.aux > 0).length, n = righe.length, arm = armate().length;
+  const prova = A && A.prova && A.prova.codec ? A.prova.codec.find(c => c.mbit === codecDiProva(MODO, i.mbit)) : null;
+  const mis = ((S.ritardi || {}).esito || {}).porte || [];
+  const passi = [
+    [!i.cartella ? "attento" : !S.disco.esiste ? "male" : "", "Destination and format",
+      !i.cartella ? "choose where to record" : !S.disco.esiste ? "the folder no longer exists" : (i.cartella.startsWith("\\\\") ? "network" : i.cartella.slice(0, 2)) + " · " + it(S.disco.libero_gb, 0) + " GB free · " + nomeCodec(i.mbit || "")],
+    [!i.atem ? "attento" : S.nomi_errore ? "male" : "", "Switcher and decks",
+      (!i.atem ? "no ATEM: no cut log and no source names" : S.nomi_errore ? "the ATEM is not responding" : S.nomi_letti ? "ATEM read at " + S.nomi_letti : "reading the ATEM…")
+      + (i.hyperdeck ? " · HyperDeck starts with REC" : " · no HyperDeck")],
+    [!n || !arm ? "attento" : !conAux && i.atem ? "attento" : "", "Inputs and input map",
+      (n ? n + (n === 1 ? " track, " : " tracks, ") + arm + " armed" : "no tracks yet: add them in Record") + " · " + (conAux ? conAux + " mapped to an aux" : "no input map")],
+    ["neutro", "Delays", mis.length ? "measured " + mis.filter(p => p.ritardo >= 0).length + " of " + mis.length
+      : righe.some(r => (r.d.ritardo || 0) > 0) ? righe.filter(r => (r.d.ritardo || 0) > 0).length + " inputs with a delay set" : "none set: only inputs behind converters need it"],
+    [prova ? "" : "attento", "System check", prova ? "encoding test of " + (A.data || "").slice(0, 10) + " · " + (S.disco.mb_s > 0 ? "drive " + it(S.disco.mb_s, 0) + " MB/s" : "drive not measured")
+      : "run the encoding test in System check"]];
+  passi[3][0] = mis.length || righe.some(r => (r.d.ritardo || 0) > 0) ? "" : "neutro";
+  $("passi").innerHTML = passi.map(([c, tit, nota]) => `<div class="passo ${c}"><i>${c === "" ? "✓" : c === "neutro" ? "–" : "!"}</i><div><b>${tit}</b><small>${html(nota)}</small></div></div>`).join("");
+  const st = $("stato").className.replace("stato", "").trim();
+  $("pronto").className = "pronto " + (st === "verde" ? "" : st);
+  $("pronto-testo").textContent = $("stato-testo").textContent; $("pronto-nota").textContent = $("stato-nota").textContent;
+  const b = document.querySelector('#pagine [data-p="set"]');
+  b.classList.toggle("fatto", passi.every(p => p[0] === "" || p[0] === "neutro"));
+  b.classList.toggle("attento", passi.some(p => p[0] === "attento" || p[0] === "male"));
+  b.firstChild.textContent = b.classList.contains("fatto") ? "✓" : b.classList.contains("attento") ? "!" : "1";
+  // --- l'elenco degli ingressi, in Setup: tutte le porte della macchina, con quelle che hanno una traccia
+  if (paginaOra === "set") {
+    const lista = listaTracce();
+    $("tab-conta").textContent = S.ingressi.length + " on this computer · " + lista.length + " with a track";
+    const h = "<tr><th>#</th><th>Capture card</th><th>Input</th><th>Connector</th><th>Signal</th><th>Aux</th><th>ATEM source</th><th>Track</th><th>Timecode</th><th>Delay</th><th>Record</th></tr>" +
+      S.ingressi.map((d, k) => {
+        const sch = schedaEIngresso(d.porta), tr = lista.find(x => x.porta === d.porta), r = righe.find(x => x.d && x.d.porta === d.porta);
+        return `<tr><td class="d">${k + 1}</td><td><b>${html(sch[0])}</b></td><td>${html(sch[1] || "—")}</td><td class="d">${html(d.connettore)}</td>
+          <td>${!d.aperta ? `<span class="male">${html(d.errore || "not open")}</span>` : !d.segnale ? '<span class="attento">no signal</span>' : html(d.formato || "")}</td>
+          <td>${d.aux > 0 ? "AUX " + d.aux : "—"}</td><td>${d.nome_sorgente ? html(d.nome_sorgente) : '<span class="tenue">' + (d.aux > 0 ? "—" : "not in the input map") + "</span>"}</td>
+          <td>${tr ? html(r ? r.input.value : tr.nome || nomeBase(d)) + '<span class="tenue">.mov</span>' : '<span class="tenue">no track</span>'}</td>
+          <td>${!d.aperta || !d.segnale ? "—" : d.tc_dal_segnale ? "from signal" : "estimated"}</td><td class="cella-rit" data-n="${r ? righe.indexOf(r) : -1}">${r ? "" : (d.ritardo || 0) + " f"}</td>
+          <td>${tr ? (tr.armata ? "R" : '<span class="tenue">off</span>') : "—"}</td></tr>`; }).join("");
+    // Si riscrive solo quando cambia qualcosa, e mai mentre si sta scrivendo un ritardo: i campi del ritardo sono
+    // quelli nati con le righe delle tracce, spostati qui dentro
+    const tab = $("tab-ingressi");
+    if ((h !== tabUltima || versioneRighe !== tabVersione) && !tab.contains(document.activeElement)) {
+      tabUltima = h; tabVersione = versioneRighe;
+      tab.innerHTML = h;
+      tab.querySelectorAll(".cella-rit").forEach(c => { const x = righe[+c.dataset.n]; if (x) c.appendChild(x.rit); });
+    }
+  }
+  // --- l'ultima registrazione, in Review
+  if (paginaOra === "rev") {
+    const ordine = listaTracce().map(x => x.porta), posto = x => { const k = ordine.indexOf(x.porta); return k < 0 ? 999 : k; };
+    const tr = [...(S.tracce || [])].sort((a, b) => posto(a) - posto(b)), c = S.cartella || "", per = flussoPerTraccia();
+    if (!c || !tr.length) {
+      $("rev-conta").textContent = "";
+      $("rev-corpo").innerHTML = '<div class="rev-vuoto">Nothing recorded in this session yet. After STOP the files, the frames written and dropped on every track, and the Resolve project appear here.</div>';
+      $("rev-titolo").innerHTML = '<h3>No recording yet</h3><p>Press REC in Record.</p>';
+    } else {
+      const d = durataSecondi(), tot = tr.reduce((a, x) => a + x.scritti / FPS * per, 0), persi = tr.reduce((a, x) => a + (x.persi || 0), 0);
+      const prj = { 1:"being built…", 2:"built", 3:"not built" }[S.progetto_stato] || (String(i.resolve) === "false" ? "not requested" : "—");
+      $("rev-conta").textContent = (rec ? "recording now · " : "") + tr.length + (tr.length === 1 ? " track" : " tracks");
+      $("rev-corpo").innerHTML = '<table class="elenco"><tr><th>File</th><th>Written</th><th>Size</th><th>Dropped</th><th>Repeated</th><th>Black</th><th>Max queue</th><th></th></tr>' +
+        tr.map(x => `<tr><td><b>${html(x.file)}</b></td><td>${tc(x.scritti)}</td><td>${it(x.scritti / FPS * per / 1e9, 1)} GB</td><td class="${x.persi ? "male" : ""}">${x.persi}</td>
+          <td>${x.riempiti}</td><td class="${x.neri ? "attento" : ""}">${(x.neri || 0).toLocaleString("en-US")}</td><td>${x.coda_max}</td><td class="male">${html(x.errore || "")}</td></tr>`).join("") + "</table>";
+      $("rev-titolo").innerHTML = `<h3>${html(c.split("\\").pop())}</h3><p>${html(c)}</p>
+        <div class="numeri"><div><span>Duration</span><b>${tc(d * FPS, false)}</b></div><div><span>Tracks</span><b>${tr.length}</b></div>
+        <div><span>Dropped</span><b style="color:${persi ? "#ff9d95" : "var(--verde)"}">${persi}</b></div><div><span>Size</span><b>${it(tot / 1e9, 0)} GB</b></div></div>
+        <div class="kvs" style="margin-top:14px"><span>Start</span><b>${html(S.inizio || "—")}</b><span>Markers</span><b>${(S.elenco_marker || []).length}</b>
+        <span>Resolve project</span><b>${html(S.progetto || prj)}</b></div>`;
+    }
+  }
+}
 
 const nomeBase = d => (d.nome_sorgente || d.porta.replace(/^DeckLink\s+/i, "")).replace(/[\\/:*?"<>|]/g, "");
 // le uscite dei M/E dell'ATEM hanno numeri dal 10010 in su: in viola come il programma in Resolve
@@ -965,7 +1276,8 @@ function rotellina(e) {
 
 function righello(a, b, d, base) {
   const span = b - a, passi = [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
-  const passo = passi.find(p => span / p <= 10) || 7200;
+  const quante = Math.max(2, Math.min(12, Math.floor(($("scala").clientWidth || 800) / 84)));
+  const passo = passi.find(p => span / p <= quante) || 7200;
   const pos = t => (t - a) / span * 100;
   let h = "";
   for (let t = Math.ceil(a / (passo/2)) * (passo/2); t <= b; t += passo/2) {
@@ -1029,6 +1341,7 @@ function aggiorna() {
   sistema();
   mostraMarker();
   esitoRec();
+  pagine();
 }
 
 // i campi si riscrivono solo se non ci si sta scrivendo dentro
@@ -1060,7 +1373,7 @@ function impostazioniInPagina() {
 function titolo() {
   const i = imp();
   const cartella = S.cartella && inRegistrazione() ? S.cartella.split("\\").pop() : "";
-  $("nome-reg").textContent = cartella || i.nome || "named by date and time at REC";
+  nomeRegistrazione = cartella || i.nome || "named by date and time at REC";
   const spia = (id, classe, testo, tit) => { const e = $(id); e.className = "spia " + classe; e.lastChild.textContent = testo; e.title = tit || ""; };
   if (!i.atem) spia("sp-atem", "", "ATEM", "no ATEM in Settings");
   else if (S.nomi_in_corso) spia("sp-atem", "attento", "ATEM", "reading source names…");
@@ -1071,7 +1384,7 @@ function titolo() {
   else if (inRegistrazione() && S.hyperdeck_record) spia("sp-hd", /^2\d\d/.test(S.hyperdeck_record) ? "si" : "male", "HyperDeck", S.hyperdeck_record);
   else spia("sp-hd", "", "HyperDeck", i.hyperdeck + ": starts and stops with REC");
   const conAux = S.ingressi.filter(d => d.aux > 0).length;
-  spia("sp-mappa", conAux ? "si" : "attento", "Input map", conAux ? conAux + (conAux === 1 ? " input mapped to an aux" : " inputs mapped to an aux") : "no input map: press Map inputs… below the tracks, off air only");
+  spia("sp-mappa", conAux ? "si" : "attento", "Input map", conAux ? conAux + (conAux === 1 ? " input mapped to an aux" : " inputs mapped to an aux") : "no input map: press Map inputs… under the tracks or Map in Setup, off air only");
   spia("sp-porta", collegato ? "si" : "male", ":" + (i.porta || 8811), collegato ? "recorder connected" : "recorder not responding");
 }
 
@@ -1102,11 +1415,16 @@ function aggiornaTracce() {
     else if (!r.toccato && document.activeElement !== r.input) r.input.value = nomeBase(x);
     const tl = el.querySelector(".tally");
     tl.className = "tally" + (x.sorgente >= 10000 ? " pgm" : ""); tl.textContent = x.sorgente >= 10000 ? "PGM" : "";
-    el.querySelector(".via").innerHTML = `<b>${html(x.porta.replace(/^DeckLink\s+/i, ""))}</b> · ${html(x.connettore)}` +
-      (x.formato ? " · " + (x.formato_registratore && x.formato_registratore !== MODO
+    const sch = schedaEIngresso(x.porta);
+    el.querySelector(".via").innerHTML = `<b>${html(sch[0])}</b>` + (sch[1] ? `<i>·</i>Input ${html(sch[1])}` : "") + `<i>·</i>${html(x.connettore)}` +
+      (x.formato ? "<i>·</i>" + (x.formato_registratore && x.formato_registratore !== MODO
         ? `<span class="male">${html(x.formato)}, not ${html(MODO)}: this input stays empty</span>` : html(x.formato)) : "") +
-      (!x.aperta ? ` · <span class="male">${html(x.errore)}</span>`
-        : x.aux > 0 ? ` · AUX ${x.aux}${x.nome_sorgente ? ` ← <b>${html(x.nome_sorgente)}</b>` : ""}` : " · not in the input map");
+      (!x.aperta ? `<i>·</i><span class="male">${html(x.errore)}</span>` : "");
+    el.querySelector(".aux").textContent = x.aperta && x.aux > 0 ? "AUX " + x.aux : "";
+    el.querySelector(".src").textContent = x.aperta && x.aux > 0 && x.nome_sorgente && x.nome_sorgente !== r.input.value ? "← " + x.nome_sorgente : "";
+    el.querySelector(".senza-mappa").textContent = x.aperta && !(x.aux > 0) ? "not in the input map" : "";
+    const pe = el.querySelector(".persi");
+    pe.textContent = t ? t.persi + " dropped" : ""; pe.className = "persi" + (t && t.persi ? " male" : "");
     el.querySelector(".tc-traccia").textContent = x.tc !== "--" ? x.tc : "--:--:--:--";
     const o = el.querySelector(".origine");
     o.className = "origine " + (!x.aperta || !x.segnale ? "nero" : x.tc_dal_segnale ? "segnale" : "stimato");
@@ -1114,19 +1432,20 @@ function aggiornaTracce() {
     const misura = S.ritardi || {}, esito = ((misura.esito || {}).porte || []).find(k => k.porta === x.porta);
     r.ritN.disabled = r.ritM.disabled = inRegistrazione() || misura.in_corso;
     if (document.activeElement !== r.ritN) r.ritN.value = x.ritardo ?? 0;
-    const es = el.querySelector(".rit .esito");
+    const es = r.rit.querySelector(".esito");
     es.className = "esito" + (esito ? (esito.ritardo >= 0 ? " ok" : " male") : "");
     es.textContent = misura.in_corso && r.ritM.checked ? "…" : esito ? (esito.ritardo >= 0 ? "✓" : "⚠") : "";
     es.title = esito ? esito.nota : "";
     el.querySelector(".conti").innerHTML = t
-      ? `<b>${tc(t.scritti)}</b> · <b>${it(t.scritti / FPS * per / 1e9, 1)} GB</b> · dropped <b class="${t.persi ? "male" : ""}">${t.persi}</b>` +
+      ? `<b>${tc(t.scritti)}</b> · <b>${it(t.scritti / FPS * per / 1e9, 1)} GB</b>` +
         ` · repeated <b>${t.riempiti}</b> · black <b class="${t.neri ? "male" : ""}">${t.neri.toLocaleString("en-US")}</b> · max queue <b>${t.coda_max}</b>` +
         (t.errore ? ` · <b class="male">${html(t.errore)}</b>` : "")
       : x.aperta ? `levels <b>${x.db.map(v => v <= -100 ? "−∞" : it(v, 1)).join(" / ")}</b> dBFS` : "";
     // livelli in dBFS di picco
     r.vu.forEach((v, k) => {
       const db = x.db[k] ?? -120, p = picco(r, k, db), tacca = v.firstChild;
-      v.style.setProperty("--v", (100 - frazioneDb(db) * 100) + "%");
+      r.mostrati[k] = Math.max(frazioneDb(db), (r.mostrati[k] || 0) - 0.06);
+      v.style.setProperty("--v", (100 - r.mostrati[k] * 100) + "%");
       tacca.style.setProperty("--p", p > -60 ? "calc(" + frazioneDb(p) * 100 + "% - 1px)" : "-4px");
       tacca.className = zonaDb(p);
     });
@@ -1152,6 +1471,7 @@ function aggiornaTracce() {
   const n = armate().length;
   $("conta-tracce").textContent = righe.length + (righe.length === 1 ? " track · " : " tracks · ") + (inRegistrazione() ? tracce.length : n) + " recording · " + S.ingressi.length + " inputs";
   $("flusso-piccolo").textContent = nomeCodec(imp().mbit || "") + " · " + it(per * (inRegistrazione() ? tracce.length : n) / 1e6, 0) + " MB/s";
+  adatta();
 }
 
 // la storia dei livelli di una riga, per la striscia sotto la clip: al più 4000 punti, poi si dimezza tenendo il massimo
@@ -1255,10 +1575,10 @@ function aggiornaRisorse() {
       if (avvisi.length) metti("giallo", "RECORDING, WITH WARNINGS", avvisi.map(c => c.testo).join(" · ")); }
   } else {
     if (S.cartella && S.progetto_stato === 1) metti("giallo", "BUILDING PROJECT", S.progetto);
-    else if (S.cartella && S.progetto_stato === 3) metti("rosso", "PROJECT NOT BUILT", S.progetto + " · PROJECT button to retry");
-    else if (!cartella) metti("giallo", "CHOOSE DESTINATION", "Destination, top left");
+    else if (S.cartella && S.progetto_stato === 3) metti("rosso", "PROJECT NOT BUILT", S.progetto + " · Project button to retry");
+    else if (!cartella) metti("giallo", "CHOOSE DESTINATION", "in Setup, Destination");
     else if (!D.esiste) metti("rosso", "FOLDER NOT FOUND", cartella);
-    else if (!n) metti("giallo", "NO TRACK ARMED", "R next to the meters");
+    else if (!n) metti("giallo", "NO TRACK ARMED", "add a track, or press R on its row");
     else if (M.n != null && n > M.n && !M.almeno)
       metti(/CPU|drive/.test(M.chi) ? "rosso" : "giallo", "TOO MANY TRACKS", n + " armed, this machine handles " + M.n + " (limit: " + (M.chi || M.voci[0][0]) + ")");
     else if (S.misura.in_corso) metti("giallo", "DRIVE TEST", "five seconds");
@@ -1327,7 +1647,7 @@ let ctlMotivo = "semaforo", forzaInviata = false;
 async function rec(forza, avvisiVisti) {
   if (inRegistrazione()) return;
   const a = armate();
-  if (!a.length) return avviso("No track armed: press R next to the meters.");
+  if (!a.length) return avviso("No track armed: add a track under the list, or press R on its row.");
   const v = avvisiVisti ? [] : avvisiAtem();
   if (v.length) {
     ctlMotivo = "avvisi";
@@ -1424,12 +1744,13 @@ $("mk-ic").style.background = TINTE_MARKER[COLORI[colore]];
 let mkVisti = "";
 function mostraMarker() {
   const el = S.elenco_marker || [];
-  $("mk-conta").textContent = S.inizio || el.length ? el.length + (el.length === 1 ? " marker" : " markers") : "";
+  $("mk-conta").textContent = el.length ? String(el.length) : "";
   const chiave = el.length + "|" + (el.length ? el[el.length - 1].tc : "");
   if (chiave === mkVisti) return;
   mkVisti = chiave;
-  $("mk-ultimi").innerHTML = el.slice(-3).reverse().map(m =>
-    `<span class="ultimo" title="${html(FONTI_MARKER[m.fonte] || m.fonte)}"><i style="background:${TINTE_MARKER[m.colore] || "#999"}"></i><span class="num">${m.timecode}</span> ${m.testo ? html(m.testo) : "<span class='tenue'>no text</span>"}</span>`).join("");
+  $("mk-elenco").innerHTML = el.length ? el.slice().reverse().map(m =>
+    `<div class="mk-voce" title="${html(FONTI_MARKER[m.fonte] || m.fonte)}"><i style="background:${TINTE_MARKER[m.colore] || "#999"}"></i><div><b>${m.testo ? html(m.testo) : "<span class='tenue'>no text</span>"}</b><span class="num">${m.timecode}</span></div></div>`).join("")
+    : `<div class="mk-vuoto">No markers yet. While recording press M, or Enter in the text field: the marker is written at the file timecode and ends up on the Resolve timeline.</div>`;
 }
 async function marker() {
   if (!registra()) return;
@@ -1465,8 +1786,8 @@ async function fermaAtem() {
 $("misura-ritardi").onclick = async () => {
   if ((S.ritardi || {}).in_corso) { fermaAtem(); return; }
   const scelte = righe.filter(r => r.ritM.checked && r.d.aperta);
-  if (!scelte.length) { avviso("Tick “meas.” on the tracks of the inputs to measure."); return; }
-  if (!confirm("The measurement sets the aux outputs of the ticked inputs to M/E 1 program and makes eight cuts between bars and black on the ATEM program, for about ten seconds. Then it restores everything as it was.\n\nOff air only. Proceed?")) return;
+  if (!scelte.length) { avviso("Tick “meas.” on the inputs to measure, in the Inputs table of Setup."); return; }
+  if (!(await domanda("Measure the delays", "The measurement sets the aux outputs of the ticked inputs to M/E 1 program and makes eight cuts between bars and black on the ATEM program, for about ten seconds. Then it restores everything as it was.\n\nIt writes to the ATEM: off air only, never during a show.", { si:"Measure, off air", pericolo:true }))) return;
   const j = await chiedi("/misura-ritardi?porte=" + scelte.map(r => r.n).join(","));
   if (j.errore) avviso(j.errore);
 };
@@ -1477,7 +1798,7 @@ function infoRitardi() {
   b.title = m.in_corso ? "Stops the measurement and puts the ATEM program, preview and aux outputs back as they were"
                        : "Cuts between bars and black on the ATEM program to measure the delay of the ticked inputs: off air only";
   if (m.in_corso) { i.textContent = "measuring: cuts on the program…"; i.title = ""; return; }
-  if (!e) { i.textContent = "tick “meas.” on the tracks"; i.title = "Each input's delay is set on its track, in frames"; return; }
+  if (!e) { i.textContent = "tick “meas.” in the Inputs table"; i.title = "Each input's delay is set in the Inputs table below, in frames"; return; }
   const buone = (e.porte || []).filter(p => p.ritardo >= 0).length;
   i.textContent = e.errore ? "⚠ " + e.errore : `measured ${buone} of ${(e.porte || []).length}` + (e.atem_rimesso ? " · ATEM restored" : " · ⚠ check the ATEM");
   i.title = "Reference: " + e.riferimento + " · " + (e.porte || []).map(p => p.porta + ": " + p.nota).join(" · ");
@@ -1488,10 +1809,10 @@ async function faiMappa() {
   if ((S.mappa || {}).in_corso) { fermaAtem(); return; }
   if (inRegistrazione()) return;
   if (!imp().atem) { avviso("Set the ATEM address first: the input map switches its aux outputs."); return; }
-  if (!confirm("The input map finds which ATEM aux output is cabled to each DeckLink input.\n\n" +
+  if (!(await domanda("Map the inputs", "The input map finds which ATEM aux output is cabled to each DeckLink input.\n\n" +
       "One at a time, every aux output of the ATEM goes to black and then to bars for about a second, and the input that follows it is the one cabled to it. " +
       "Then the aux goes back to its source, and at the end the ATEM is read again to check that every aux is as before. About a second per aux: twelve aux outputs take about 15 seconds.\n\n" +
-      "It writes to the ATEM: off air only, never during a show. Proceed?")) return;
+      "It writes to the ATEM: off air only, never during a show.", { si:"Map, off air", pericolo:true }))) return;
   mappaVista = false;
   const j = await chiedi("/mappa-ingressi");
   if (j.errore) avviso(j.errore);
@@ -1705,7 +2026,9 @@ function segmentato(id, fai) {
   const v = q || leggi(id, null), b = v && $(id).querySelector(`[data-v="${v}"]`);
   if (b) b.click();
 }
-segmentato("altezza", v => $("tracce").className = "alt-" + v);
+segmentato("altezza", v => { $("tracce").className = "alt-" + v; tAdatta = 0; });
+{ let q = null; try { q = new URLSearchParams(location.search).get("pagina"); } catch (e) {}
+  const p = q || leggi("pagina", "rec"); if (/^(set|rev)$/.test(p)) vai(p); }
 segmentato("vista", v => { vista = v; zoom = null; aggiorna(); });
 document.addEventListener("wheel", rotellina, { passive:false });
 // Alt lasciato da solo porterebbe il fuoco sul menu del browser e il tasto M non metterebbe più i marker
@@ -1717,7 +2040,7 @@ $("cursore").addEventListener("pointerdown", trascinaCursore);
 $("finestrelle").onclick = () => { accese = !accese; $("finestrelle").classList.toggle("si", accese); };
 $("vai-controllo").onclick = () => { if (!inRegistrazione()) location.href = "/primo-avvio"; };
 $("esci").onclick = async () => {
-  if (inRegistrazione() || !confirm("Quit the recorder?")) return;
+  if (inRegistrazione() || !(await domanda("Quit", "Quit the recorder?", { si:"Quit" }))) return;
   const j = await chiedi("/esci");
   if (j.errore) return avviso(j.errore);
   $("spento").classList.add("aperto");
@@ -1798,7 +2121,7 @@ async function controllaPrerequisiti() {
 $("prq-dopo").onclick = () => $("prq").classList.remove("aperto");
 // ============================================================ manuale (sezione 9.77): tasto Help e F1
 async function apriManuale() {
-  try { const j = await chiedi("/manuale"); if (j.errore) alert(j.errore); } catch (e) {}
+  try { const j = await chiedi("/manuale"); if (j.errore) avviso(j.errore); } catch (e) {}
 }
 $("aiuto").onclick = apriManuale;
 document.addEventListener("keydown", e => { if (e.key === "F1") { e.preventDefault(); apriManuale(); } });

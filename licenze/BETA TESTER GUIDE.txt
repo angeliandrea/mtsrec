@@ -37,32 +37,36 @@ FIRST LAUNCH
 1. The system check runs once, about twenty seconds: CPU, memory, cards and PCIe links, Desktop Video,
    drives, network, Windows settings and an encoding test. It tells you how many tracks this machine can
    record and what to fix. Fix the red items before recording.
-2. "Open recorder". Off air, press "Map inputs..." under the tracks: it finds which ATEM aux output is
+2. "Open recorder". The window has three pages: Setup before the show, Record during it, Review after.
+   Off air, in Record, press "Map inputs..." under the tracks: it finds which ATEM aux output is
    cabled to each DeckLink input, switching each aux for a moment and putting it back. Then add tracks
    with "+ Add track", or "Add all inputs" for every DeckLink input of the computer, mapped inputs first
    in aux order. "Tracks possible" shows the limit and what sets it.
-3. Choose the destination, set the ATEM address if it was not found by itself, and save the whole
-   configuration with "Save as…" if you want to recall it.
+3. In Setup choose the destination, set the ATEM address if it was not found by itself, read the steps
+   of "Before the show", and save the whole configuration with "Save as…" if you want to recall it.
 
 WHAT TO TEST, IN THIS ORDER
 1. A 1-minute recording with a few cuts and dissolves on the program, and two markers.
-   At STOP check: no dropped frames, the Resolve project opens with the multicam and the cut timeline.
+   After STOP open Review: no dropped frames, and the Resolve project opens with the multicam and the
+   cut timeline.
 2. Ten minutes with all the tracks your machine handles.
 3. One hour, if you can: this is the test that says the most.
 4. Anything your control room does differently: other ATEM models, HDMI inputs, converters,
    Thunderbolt boxes, a HyperDeck recording alongside ("HyperDeck clips…").
 5. The frame rate you work at, if it is not 25: above all 29.97 and 59.94 with drop-frame timecode, and
    1080i. Check that the cuts in Resolve land on the right frame.
-6. With a 4K ATEM: the same tests in 2160p. Check that the timecode is "TC FROM SIGNAL" on every track
+6. With a 4K ATEM: the same tests in 2160p. Check that the timecode is "TC from signal" on every track
    and that the cuts in Resolve land on the right frame.
 Always off air, or with another recorder running: this is a beta.
 
 SENDING THE RESULTS
-After each test press "Test report…" (top bar of the recorder, it lights up after STOP).
+After each test open Review and press "Test report…" (it lights up after STOP).
 - You see everything that is inside before anything is created.
 - Write a few notes: ATEM model, cards, cabling, what you tested, what went wrong.
-- "Create report and email it" saves a small zip (about 10 KB), opens its folder and prepares an email
-  to info@angeliandrea.it. Attach the zip and send. If no mail program opens, send it from your webmail
+- "Save report to Desktop" saves a small zip (about 15 KB) on your Desktop and opens the folder with
+  the file selected.
+- Send it the way you prefer: "Open upload page" opens the developer's Filemail page in your web
+  browser, where you drop the zip and press Send; or attach it to an email to info@angeliandrea.it
   with the subject shown on screen.
 
 The report contains no video, no IP addresses, no computer or user names, no file paths and no recording
