@@ -8,6 +8,7 @@ nella pagina PRIMA della cattura, quindi qui non c'è più niente da coprire: qu
 Fino al manuale rev 07 copriva a mano i rettangoli con gli indirizzi, da qui il nome.
 
 Le catture grezze non stanno nel progetto: senza argomento si cercano in %TEMP%\\mtsrec-pagine\\schermate."""
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -32,4 +33,7 @@ salva("m-controllo.png", "system check.png", (0, 0, 1920, 486))
 salva("m-registratore.png", "record in registrazione.png")
 salva("m-setup.png", "setup.png", (0, 0, 1920, 800))
 salva("m-traccia.png", "tracce da vicino.png")
-salva("m-review.png", "review.png", (0, 0, 1920, 520))
+# dalla beta 12 i ritagli di Events e Review li misura schermate.py nella pagina (ritagli.json)
+R = json.loads((C / "ritagli.json").read_text(encoding="utf-8"))
+salva("m-review.png", "review.png", tuple(round(v) for v in R["review"]))
+salva("m-eventi.png", "record eventi.png", tuple(round(v) for v in R["eventi"]))

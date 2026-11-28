@@ -5,7 +5,7 @@
 <title>Multicam Timecode Sync Recorder User Manual</title>
 <style>
 @page { size: A4; margin: 16mm 17mm 18mm 17mm;
-  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 08"; font: 8pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "Multicam Timecode Sync Recorder {{VERSIONE}} · User Manual rev 09"; font: 8pt "Segoe UI", sans-serif; color: #888; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", sans-serif; color: #888; } }
 @page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
 * { box-sizing: border-box; }
@@ -61,7 +61,7 @@ a { color: #2f5f97; text-decoration: none; }
     <div class="sotto">ISO recording for ATEM switchers on Blackmagic DeckLink cards, with the Resolve project built at STOP</div>
   </div>
   <div class="dati">
-    <p><b>Program version {{VERSIONE}}</b> · manual revision 08 · 28 November 2026</p>
+    <p><b>Program version {{VERSIONE}}</b> · manual revision 09 · 28 November 2026</p>
     <p>This is a beta version, free of charge and provided as is, without any warranty. Never use it as the only recorder of a show you cannot repeat: always keep another recording running.</p>
     <p>ATEM, DeckLink, HyperDeck, Desktop Video, DaVinci Resolve and Blackmagic Design are trademarks of Blackmagic Design Pty Ltd. Premiere Pro is a trademark of Adobe. Multicam Timecode Sync Recorder is not affiliated with or endorsed by any of them.</p>
   </div>
@@ -76,7 +76,7 @@ a { color: #2f5f97; text-decoration: none; }
 <p>Multicam Timecode Sync Recorder records every DeckLink input of a Windows computer to its own file while an ATEM switcher runs the show. This is called ISO recording: one file per camera, plus the program if you want it.</p>
 <ul>
   <li><b>Every file carries the ATEM timecode.</b> The ATEM embeds its timecode in every SDI output. The recorder writes it into the files, so all the angles line up to the frame in any editing program.</li>
-  <li><b>The live edit is logged.</b> While recording, the recorder listens to the ATEM and logs every cut and dissolve on the program.</li>
+  <li><b>The live edit is logged.</b> While recording, the recorder listens to the ATEM and logs every cut and dissolve on the program. You see them grow in the Program lane above the tracks, and every track carries the tally of its source, red on air and green in preview.</li>
   <li><b>At STOP the edit is ready.</b> DaVinci Resolve Studio receives a project with a multicam clip of all the angles and a timeline with the same cuts as the live show. You can change any cut, because every angle is there. The same edit is also written as FCPXML, Premiere Pro XML and EDL.</li>
   <li><b>Markers on the fly</b>, from the window, the keyboard or the network (Bitfocus Companion, a Stream Deck, any HTTP client). They land on the Resolve timeline with their text and color.</li>
   <li><b>It knows the machine.</b> A system check measures the processor and the drives and tells you how many tracks this computer can record with a safe margin.</li>
@@ -165,7 +165,7 @@ a { color: #2f5f97; text-decoration: none; }
 python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</pre>
 
 <h1 id="finestra">6 The recorder window</h1>
-<figure><img src="img/m-registratore.png" alt="Record page"><figcaption>Figure 2 – The Record page while recording.</figcaption></figure>
+<figure><img src="img/m-registratore.png" alt="Record page"><figcaption>Figure 2 – The Record page while recording: the Program lane with the cuts of the ATEM above the tracks, and Camera 2 on air.</figcaption></figure>
 <p>The window has a top bar and three pages, in the order of the work: <span class="ui">Setup</span> before the show, <span class="ui">Record</span> during the show, <span class="ui">Review</span> after it. The recorder opens on the page you left.</p>
 
 <h2 id="titolo">6.1 Top bar</h2>
@@ -247,12 +247,13 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
 </table>
 
 <h2 id="tracce">6.6 Record: tracks</h2>
-<figure><img src="img/m-traccia.png" alt="A track" style="width:78%"><figcaption>Figure 4 – Two tracks while recording.</figcaption></figure>
+<figure><img src="img/m-traccia.png" alt="A track" style="width:78%"><figcaption>Figure 4 – Two tracks while recording, with the tally: Camera 2 on air, Camera 1 in preview.</figcaption></figure>
 <p>The recorder opens with no tracks. Under the list, choose a free input and press <span class="ui">+ Add track</span>, or <span class="ui">Add all inputs</span> for every DeckLink input of the computer with one button: the inputs in the input map come first, in aux order, then the others in input order. Before that, <span class="ui">Map inputs…</span> next to them makes the input map (<a href="#mappa">5.2</a>). The limit is the number shown by <span class="ui">Tracks possible</span>.</p>
 <p>Above the list: how many tracks there are and how many will record, <span class="ui">View</span> for the timeline (<a href="#timeline">6.7</a>), <span class="ui">Rows</span> S, M, L for the height of the rows, and <span class="ui">Thumbnails</span>, which turns the thumbnails on and off. They refresh in turn, never at the expense of recording.</p>
 <ul>
   <li><span class="ui">×</span> on the track number removes the track.</li>
-  <li><b>First line</b>: the name, which is the file name. It comes from the name of the source on the aux, read from the ATEM. Type over it to change it, before REC. Next to it the aux output cabled to the input, such as <span class="ui">AUX 1</span>, and the source on that aux when you have given the track another name (<i>← Camera 1</i>). <span class="ui">PGM</span> on the thumbnail marks a track that records a program output of the ATEM.</li>
+  <li><b>First line</b>: the name, which is the file name. It comes from the name of the source on the aux, read from the ATEM. Type over it to change it, before REC: the name you type stays for the following recordings, and a setup you save keeps it. Clear it to go back to the name of the source. While recording the field shows the name of the file being written. Next to it the aux output cabled to the input, such as <span class="ui">AUX 1</span>, and the source on that aux when you have given the track another name (<i>← Camera 1</i>).</li>
+  <li><b>Tally</b>, on the thumbnail, as on a camera: <span class="ui">PGM</span> in red when the source on the aux of the track is on air on the program of M/E 1, also during a dissolve, and <span class="ui">PVW</span> in green when it is in preview. It comes from the ATEM as it happens, so it needs the input map (<a href="#mappa">5.2</a>) and an ATEM that answers. A track that records an output of an M/E, such as its program, shows <span class="ui">ME1 PGM</span> in violet.</li>
   <li><b>Second line</b>: the capture card, its input, the connector and the format arriving, such as <i>DeckLink Duo 2 · Input 4 · SDI · 1080p25</i>. A format different from the ATEM appears in red, such as <i>1080p50, not 1080p25: this input stays empty</i>.</li>
   <li><b>Third line</b>: the timecode the input receives and where it comes from. <span class="ui">TC from signal</span> when it comes from the ATEM, <span class="ui">estimated TC</span> when the recorder counts it, <span class="ui">no signal</span>. An input that the input map does not know says <i>not in the input map</i>. On the right, the frames this track has dropped in the current or last recording.</li>
   <li><b>Fourth line</b>, with the rows at height M or L: the audio levels in numbers before recording, then duration, size, repeated and black frames and the longest queue of the track.</li>
@@ -269,16 +270,25 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <li>Double-click on the ruler, or <span class="k">Ctrl</span>+<span class="k">Z</span>: back to the full view.</li>
   <li>The bar at the bottom: drag to scroll, click to jump to a point, double-click for the full view.</li>
 </ul>
+<p><b>The Program lane</b>, above the tracks, shows the program of M/E 1 of the ATEM cut by cut, as the switcher sends it: one block per source with its name, each source with a color of its own. A dissolve shows as a fade at the start of its block, as long as the dissolve. These are the same cuts and dissolves that the Resolve project receives at STOP (<a href="#resolve">chapter 10</a>), so you can check the edit while the show is still running. Markers cross the lane too. Next to <span class="ui">Program</span>: how many cuts and dissolves so far, and the source on air. Before REC only the source on air is shown. Without an ATEM in Settings the lane says so, and there is no tally.</p>
 
-<h2 id="pannello-marker">6.8 Record: markers</h2>
-<p>On the right, the list of all the markers of the recording, newest first, with text and timecode. Under it the text field, the colors and <span class="ui">Add marker</span>: see <a href="#marker">chapter 8</a>.</p>
+<h2 id="pannello-marker">6.8 Record: markers and events</h2>
+<figure><img src="img/m-eventi.png" alt="Events list" style="width:42%"><figcaption>Figure 5 – The Events list after a recording.</figcaption></figure>
+<p>On the right, two lists, chosen with the two buttons on top.</p>
+<ul>
+  <li><span class="ui">Markers</span>: all the markers of the recording, newest first, with text and timecode. Under the list the text field, the colors and <span class="ui">Add marker</span>: see <a href="#marker">chapter 8</a>.</li>
+  <li><span class="ui">Events</span>: what happened since the window was opened, newest first, with the timecode: REC and STOP, a track that loses its signal and gets it back, frames dropped and black frames written on a track, the ATEM that stops answering and answers again, less than 30, 10 and 3 minutes left on the drive, the Resolve project being built, built or not built. A change counts only when it lasts, so a signal that drops for a moment is not an alarm. Warnings have an amber dot. Serious events, such as frames dropped or a signal lost during a recording, have an amber background as well, and the <span class="ui">Events</span> button turns amber until you open the list.</li>
+</ul>
+<p>The events are kept by the window and are not saved: the recording folder has its own logs (<a href="#cartella">7.1</a>).</p>
 
 <h2 id="review">6.9 Review</h2>
-<figure><img src="img/m-review.png" alt="Review page"><figcaption>Figure 5 – The Review page after a recording.</figcaption></figure>
-<p>After STOP, Review shows the last recording: name and folder, duration, tracks, dropped frames, size, the timecode of REC, the markers and the state of the Resolve project. The table lists every file with frames written, size, dropped, repeated and black frames and the longest queue. A dropped frame is written in red, black frames in amber: they are the first thing to look at.</p>
+<figure><img src="img/m-review.png" alt="Review page"><figcaption>Figure 6 – The Review page after two recordings in the same destination.</figcaption></figure>
+<p><b>Recordings</b> lists every recording in the destination folder, newest first: date and time of REC, name, duration, tracks, dropped frames, size, cuts and dissolves from the ATEM, and the state of the Resolve project. A recording interrupted by a crash or a power cut is marked <i>interrupted</i>, then <i>repaired</i> once the recorder has repaired it. The list is read again when you open Review, with <span class="ui">Refresh</span> and after every recording, never while recording, to leave the drive to the tracks.</p>
+<p><b>Click a recording</b> to see its <b>Tracks</b> below: every file with frames written, size, dropped, repeated and black frames and the longest queue. A dropped frame is written in red, black frames in amber: they are the first thing to look at. On the right the same recording at a glance: folder, duration, tracks, dropped frames, size, the timecode of REC, the cuts, the markers and the Resolve project. For a recording made earlier these come from the files it left in its folder.</p>
 <ul>
-  <li><span class="ui">Build Resolve project</span> builds the project of the last recording again (<a href="#resolve">chapter 10</a>).</li>
-  <li><span class="ui">HyperDeck clips…</span> adds the clips of HyperDecks to the Resolve project (<a href="#hyperdeck">chapter 11</a>).</li>
+  <li><span class="ui">Build project again</span> builds the Resolve project of the selected recording again, and opens Resolve if it is closed (<a href="#resolve">chapter 10</a>). It needs the ATEM log of that recording.</li>
+  <li><span class="ui">Open folder</span> opens the folder of the selected recording in File Explorer.</li>
+  <li><span class="ui">HyperDeck clips…</span> adds the clips of HyperDecks to the Resolve project of the selected recording (<a href="#hyperdeck">chapter 11</a>).</li>
   <li><span class="ui">Test report…</span> creates the beta test report (<a href="#rapporto">chapter 13</a>).</li>
 </ul>
 
@@ -292,9 +302,9 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <li><b>In Record, check every track</b>: image in the thumbnail, <span class="ui">TC from signal</span>, audio on the meters, the right name, <span class="ui">R</span> armed.</li>
   <li><b>Check Resources</b>: margins on drive and processor, and enough time left for the whole show.</li>
   <li><b>Press Start recording.</b> Before starting, the recorder checks the destination: a folder inside a synced cloud folder, a drive that refuses to write, Windows Update active, a restart pending. Problems appear in a window: <span class="ui">Cancel</span> to fix them, or <span class="ui">Record anyway</span>.</li>
-  <li><b>During the show</b>: add markers, watch the meters and the status line. The settings are locked.</li>
+  <li><b>During the show</b>: add markers, watch the meters and the status line, the tally and the Program lane. If the Events button turns amber, open the list. The settings are locked.</li>
   <li><b>Hold Stop for one second.</b> The files are closed and the edit files are written. With <i>Resolve project: yes</i>, the project is built (<a href="#resolve">chapter 10</a>).</li>
-  <li><b>Open Review</b>: every track should show zero dropped frames.</li>
+  <li><b>Open Review</b>: the recording is at the top of the list, and every track should show zero dropped frames.</li>
 </ol>
 <div class="nota"><p>A recording interrupted by a crash or a power cut is repaired automatically the next time the recorder opens.</p></div>
 
@@ -308,9 +318,7 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <tr><td>marker.csv, Marker.edl</td><td class="a">The markers, with timecode, color, duration and text. The EDL imports them into any timeline.</td></tr>
   <tr><td>porte.json</td><td class="a">The input map in use when the recording was made.</td></tr>
   <tr><td>rapporto.txt</td><td class="a">A summary per track: frames received, written, filled, black and dropped, timecode jumps.</td></tr>
-  <tr><td>Edit - ATEM cuts.fcpxml</td><td class="a">The live edit as FCPXML, for DaVinci Resolve and other programs that read it.</td></tr>
-  <tr><td>Edit - ATEM cuts - Premiere.xml</td><td class="a">The live edit for Premiere Pro.</td></tr>
-  <tr><td>Edit - ATEM cuts.edl</td><td class="a">The live edit as CMX 3600 EDL.</td></tr>
+  <tr><td>Edit - ATEM cuts.fcpxml, - Premiere.xml, .edl</td><td class="a">The live edit as FCPXML for DaVinci Resolve and other programs that read it, as XML for Premiere Pro and as CMX 3600 EDL.</td></tr>
   <tr><td>mtsrec - &lt;name&gt;.drp</td><td class="a">The Resolve project, exported, ready to import on another computer.</td></tr>
   <tr><td>progetto.json</td><td class="a">How the project build went.</td></tr>
 </table>
@@ -361,13 +369,13 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <li>In Resolve: <b>Preferences › System › General › External scripting using</b> set to <b>Local</b>.</li>
 </ul>
 <p>If Resolve is closed it is opened. Resolve starts its scripting server about thirty seconds after its window appears: the recorder waits for it and does not disturb it while it starts. A window shows the progress, and if the project cannot be built it says why and closes by itself after a minute.</p>
-<p><span class="ui">Project</span> on the Record page, or <span class="ui">Build Resolve project</span> in Review, builds the project again, at any time, from the last recording.</p>
+<p><span class="ui">Project</span> on the Record page builds the project of the last recording again, at any time. <span class="ui">Build project again</span> in Review does the same for the recording selected in the list.</p>
 
 <h1 id="hyperdeck">11 HyperDeck clips</h1>
 <p>HyperDecks that recorded the same show can join the Resolve project as extra angles, cut by the ATEM like the others. Their clips must carry the ATEM timecode, so the HyperDecks must record from the ATEM over SDI.</p>
 <ol>
   <li>Copy the clips from the HyperDeck media into a folder, also one subfolder per deck.</li>
-  <li>In Review, press <span class="ui">HyperDeck clips…</span>. <span class="ui">Recording</span> is the last recording; <span class="ui">Change…</span> picks another.</li>
+  <li>In Review, press <span class="ui">HyperDeck clips…</span>. <span class="ui">Recording</span> is the recording selected in the list; <span class="ui">Change…</span> picks another.</li>
   <li><span class="ui">Choose…</span> the clip folder. The list shows each clip, its timecode and whether it overlaps the recording.</li>
   <li><span class="ui">Build project with these clips</span>.</li>
 </ol>
@@ -404,7 +412,7 @@ python\python.exe script\mappa_porte.py --atem &lt;ATEM address&gt; --aux 9-12</
   <tr><td class="a">Format says <i>waiting for the ATEM or a signal</i></td><td class="a">Check the ATEM address in Setup and the network, or the cables to the inputs.</td></tr>
   <tr><td class="a">A track says the input does not capture UHD</td><td class="a">That input is 3G-SDI: use a 12G-SDI or HDMI 2.0 input, or record in HD.</td></tr>
   <tr><td class="a">Dropped frames in Review after STOP</td><td class="a">Fewer tracks, a lighter codec, or a faster drive. Compare with <i>Tracks possible</i> and the margins in Resources.</td></tr>
-  <tr><td class="a">The Resolve project is not built</td><td class="a">Check that Resolve Studio is installed and that <i>External scripting using</i> is <i>Local</i>. Then press <span class="ui">Build Resolve project</span> in Review. The FCPXML, Premiere XML and EDL are written anyway.</td></tr>
+  <tr><td class="a">The Resolve project is not built</td><td class="a">Check that Resolve Studio is installed and that <i>External scripting using</i> is <i>Local</i>. Then select the recording in Review and press <span class="ui">Build project again</span>. The FCPXML, Premiere XML and EDL are written anyway.</td></tr>
   <tr><td class="a">An angle is out of sync in the multicam</td><td class="a">That input has a delay: measure it with <span class="ui">Measure</span> or type it in the Inputs table of Setup, then record again.</td></tr>
   <tr><td class="a">Markers from Companion do not arrive</td><td class="a">They are accepted only while recording. Check the address, port 8811 and Windows Firewall.</td></tr>
   <tr><td class="a">Help does not open this manual</td><td class="a">No program on the computer opens PDF files: install a PDF reader, or open <i>Multicam Timecode Sync Recorder User Manual.pdf</i> from the program folder in Microsoft Edge.</td></tr>

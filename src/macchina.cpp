@@ -859,6 +859,7 @@ void Analisi::lavora(std::string atem, std::string hyperdeck, int porta) {
         {"rapporto_prova.py", prog + L"\\script\\rapporto_prova.py", "test report for the beta testers"},
         {"mappa_porte.py", prog + L"\\script\\mappa_porte.py", "input map to the ATEM aux outputs"},
         {"ritardi_porte.py", prog + L"\\script\\ritardi_porte.py", "input delay measurement"},
+        {"elenco_registrazioni.py", prog + L"\\script\\elenco_registrazioni.py", "list of past recordings in Review"},
         {"recording page", prog + L"\\interfaccia\\registratore.html", "the page itself"},
         {"system check page", prog + L"\\interfaccia\\primo-avvio.html", "this page"}};
     da = fare.size();

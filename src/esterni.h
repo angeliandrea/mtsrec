@@ -4,15 +4,25 @@
 
 // Il registro dei tagli: script\registro_atem.py in un processo a parte, sola lettura dell'ATEM.
 // Si ferma chiudendogli lo standard input, così finisce di scrivere il file da sé.
+// Dalla beta 12 (sezione 9.93) scrive anche lo stato dal vivo per la pagina: vivo è atem-vivo.json
+// (programma, anteprima, mix, aux), tagli i tagli dall'aggancio. Con uscita vuota non scrive il registro
+// grezzo: è l'ascolto da fermo, che esce da solo se l'ATEM tace per 5 secondi.
 class RegistroAtem {
 public:
     ~RegistroAtem();
-    bool avvia(const std::string& ip, const std::string& uscita, std::string& errore);
+    bool avvia(const std::string& ip, const std::string& uscita, std::string& errore,
+               const std::string& vivo = "", const std::string& tagli = "", const std::string& modo = "");
     void ferma();                         // aspetta al massimo 3 s, poi lo chiude
+    bool attivo() const { return processo_ != nullptr; }
+    bool finito() const;                  // il processo è uscito da solo
 private:
     void* processo_ = nullptr;
     void* stdin_ = nullptr;
 };
+
+// atem-vivo.json nella cartella dell'utente, in UTF-8 per la riga di comando e in largo per leggerlo.
+std::string file_atem_vivo();
+std::wstring file_atem_vivo_largo();
 
 // Gli script del pacchetto col Python del pacchetto (python\ e script\ accanto al registratore);
 // se mancano, quelli di questo computer con py -3.13.

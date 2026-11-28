@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "esterni.h"
+#include "macchina.h"
 
 #include <algorithm>
 #include <chrono>
@@ -99,7 +100,22 @@ bool Python::lancia(const std::string& script, const std::string& argomenti, std
 // ------------------------------------------------------------------ registro ATEM
 RegistroAtem::~RegistroAtem() { ferma(); }
 
-bool RegistroAtem::avvia(const std::string& ip, const std::string& uscita, std::string& errore) {
+std::wstring file_atem_vivo_largo() { return cartella_utente() + L"\\atem-vivo.json"; }
+
+std::string file_atem_vivo() {
+    const std::wstring w = file_atem_vivo_largo();
+    int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string r(n > 0 ? n - 1 : 0, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, r.data(), n, nullptr, nullptr);
+    return r;
+}
+
+bool RegistroAtem::finito() const {
+    return processo_ && WaitForSingleObject(processo_, 0) == WAIT_OBJECT_0;
+}
+
+bool RegistroAtem::avvia(const std::string& ip, const std::string& uscita, std::string& errore,
+                         const std::string& vivo, const std::string& tagli, const std::string& modo) {
     SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
     HANDLE leggi = nullptr, scrivi = nullptr;
     if (!CreatePipe(&leggi, &scrivi, &sa, 0)) { errore = "ATEM log: pipe not created"; return false; }
@@ -110,7 +126,12 @@ bool RegistroAtem::avvia(const std::string& ip, const std::string& uscita, std::
     si.hStdInput = leggi;
     si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);                // i suoi messaggi nella stessa console
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    std::wstring riga = Python::riga("registro_atem.py", "--ip " + ip + " --uscita \"" + uscita + "\"");
+    std::string arg = "--ip " + ip;
+    if (!uscita.empty()) arg += " --uscita \"" + uscita + "\"";
+    if (!vivo.empty()) arg += " --vivo \"" + vivo + "\"";
+    if (!tagli.empty()) arg += " --tagli \"" + tagli + "\"";
+    if (!modo.empty()) arg += " --modo " + modo;
+    std::wstring riga = Python::riga("registro_atem.py", arg);
     PROCESS_INFORMATION pi{};
     if (!CreateProcessW(nullptr, riga.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &si, &pi)) {
         errore = "ATEM log: Python failed to start, error " + std::to_string(GetLastError());

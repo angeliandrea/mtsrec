@@ -146,7 +146,8 @@ set(WINISO_PYTHON_DIR "${MTSREC_DEPS}/python-3.13.17-embed-amd64"
     CACHE PATH "Python embeddable da mettere nel pacchetto")
 set(WINISO_SCRIPT
     registro_atem.py mappa_porte.py nomi_atem.py ritardi_porte.py progetto_da_registratore.py crea_progetto_resolve.py
-    genera_fcpxml.py genera_premiere.py tagli_da_atem.py clip_hyperdeck.py rapporto_prova.py cadenza.py stato_atem.py)
+    genera_fcpxml.py genera_premiere.py tagli_da_atem.py clip_hyperdeck.py rapporto_prova.py cadenza.py stato_atem.py
+    elenco_registrazioni.py)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/script/registro_atem.py")
     set(WINISO_SCRIPT_SORGENTE "${CMAKE_CURRENT_SOURCE_DIR}/script")       # repository pubblico
 else()

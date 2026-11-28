@@ -115,7 +115,25 @@ struct App {
     std::string formato_fonte = "settings";           // solo il filo del server: «ATEM», «signal» o «settings»
     double misura_mb_s = -1, disco_mb_s = 0;
     std::string misura_cartella, disco_di;            // disco_di: la cartella per cui vale disco_mb_s
+    // L'ATEM ascoltato da fermo, per il tally prima del REC (beta 12, sezione 9.93): solo il filo del server.
+    RegistroAtem ascolto;
+    std::string ascolto_ip;
+    int64_t ascolto_avviato_us = 0;
 };
+
+// L'ascolto da fermo: registro_atem.py senza registro grezzo, che scrive soltanto atem-vivo.json.
+// Gira quando il registratore è fermo e c'è un ATEM; al REC lo sostituisce il registro della registrazione,
+// che scrive lo stesso file. Se l'ATEM tace lo script esce da solo e qui si rilancia, al più ogni 5 secondi.
+// Sola lettura: nell'ATEM non scrive niente (sezione 9.93).
+static void cura_ascolto(App& a) {
+    const bool voluto = a.fase == ferma && a.accettato && !a.imp.atem.empty();
+    if (a.ascolto.attivo() && (!voluto || a.ascolto_ip != a.imp.atem || a.ascolto.finito())) a.ascolto.ferma();
+    if (!voluto || a.ascolto.attivo() || adesso_us() - a.ascolto_avviato_us < 5'000'000) return;
+    a.ascolto_avviato_us = adesso_us();
+    a.ascolto_ip = a.imp.atem;
+    std::string e;
+    if (!a.ascolto.avvia(a.imp.atem, "", e, file_atem_vivo())) std::printf("⚠ ATEM listening: %s\n", e.c_str());
+}
 
 // Le porte d'ingresso aperte in anteprima col formato e l'audio delle impostazioni. Si riaprono
 // quando cambiano, mai mentre si registra.
@@ -272,6 +290,7 @@ std::string stato_json(App& a) {
     usa_trovati(a);
     usa_ritardi(a);
     usa_formato(a);
+    cura_ascolto(a);
     const int fase = a.fase;
     Registrazione* reg = a.reg.get();
     const bool rec = reg && reg->registra();
@@ -302,12 +321,30 @@ std::string stato_json(App& a) {
     }
     r += ",\"nomi_in_corso\":" + std::string(json_si(a.nomi_in_corso));
     {
+        // Lo stato dal vivo dell'ATEM, così come lo scrive registro_atem.py: programma, anteprima, mix, aux,
+        // conti dei tagli e "t", l'ora della scrittura. Da fermo lo scrive l'ascolto, al REC il registro.
+        std::string v = a.imp.atem.empty() ? std::string() : leggi_file(file_atem_vivo_largo());
+        while (!v.empty() && (v.back() == '\n' || v.back() == '\r' || v.back() == ' ')) v.pop_back();
+        r += ",\"atem_vivo\":" + (v.size() > 2 && v.front() == '{' && v.back() == '}' ? v : std::string("null"));
+    }
+    {
         // Quante aux ha l'ATEM: una voce con "sorgente" per aux in quello che ha risposto nomi_atem.py,
         // 0 se non si è ancora letto. È uno dei limiti alle tracce che la pagina propone (17 novembre).
         std::lock_guard<std::mutex> l(a.m);
         int aux = 0;
         for (size_t p = a.nomi_atem.find("\"sorgente\""); p != std::string::npos; p = a.nomi_atem.find("\"sorgente\"", p + 1)) ++aux;
         r += ",\"aux_atem\":" + std::to_string(aux);
+        // I nomi di tutte le sorgenti dell'ATEM, per dire chi è in onda anche quando non sta su un'aux
+        // (tally e corsia del programma, beta 12). «nomi» è l'ultima chiave di quello che stampa nomi_atem.py.
+        std::string nomi = "{}";
+        const size_t p = a.nomi_atem.find("\"nomi\""), q = p == std::string::npos ? p : a.nomi_atem.find('{', p),
+                     z = a.nomi_atem.find_last_of('}');
+        if (q != std::string::npos && z != std::string::npos && z > q) {
+            std::string v = a.nomi_atem.substr(q, z - q);
+            while (!v.empty() && (v.back() == ' ' || v.back() == '\n' || v.back() == '\r')) v.pop_back();
+            if (v.size() >= 2 && v.back() == '}') nomi = v;
+        }
+        r += ",\"nomi_atem\":" + nomi;
     }
     {
         std::lock_guard<std::mutex> l(a.m);
@@ -764,6 +801,8 @@ std::string avvia_rec(App& a, const std::string& query, int& codice) {
     // Il nome si consuma: la prossima registrazione ne vuole uno nuovo.
     a.imp.nome.clear();
     a.imp.salva();
+    // L'ascolto da fermo lascia l'ATEM al registro della registrazione: mai due agganci insieme.
+    a.ascolto.ferma();
     a.reg = std::make_unique<Registrazione>(v, a.orologio, a.marcatore.get());
     {
         std::lock_guard<std::mutex> l(a.m);
@@ -944,11 +983,15 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
     }
     if (percorso == "/rec") { corpo = avvia_rec(a, query, codice); return true; }
     if (percorso == "/stop") { corpo = ferma_rec(a, codice); return true; }
-    if (percorso == "/progetto") {      // il tasto PROGETTO: rifà il progetto dell'ultima registrazione
+    if (percorso == "/progetto") {      // il tasto PROGETTO: rifà il progetto dell'ultima registrazione, o di quella scelta in Review
         std::error_code ec;
         if (a.fase != ferma) { codice = 409; corpo = "{\"errore\":\"the project can be built only when recording is stopped\"}"; return true; }
-        if (!a.reg) { codice = 409; corpo = "{\"errore\":\"no recording to build it from\"}"; return true; }
-        const std::string c = a.reg->cartella();
+        std::string c = parametro_query(query, "cartella");
+        if (c.find('"') != std::string::npos) { codice = 409; corpo = "{\"errore\":\"invalid folder name\"}"; return true; }
+        if (c.empty()) {
+            if (!a.reg) { codice = 409; corpo = "{\"errore\":\"no recording to build it from\"}"; return true; }
+            c = a.reg->cartella();
+        }
         if (!fs::exists(fs::u8path(c) / "atem.jsonl", ec)) {
             codice = 409; corpo = "{\"errore\":\"no ATEM log: the Resolve project cannot be built\"}"; return true;
         }
@@ -956,6 +999,49 @@ bool rispondi(App& a, const std::string& percorso, const std::string& query, std
         guarda_progetto(a);
         if (a.progetto_stato == 1) { codice = 409; corpo = "{\"errore\":\"the project is already being built\"}"; return true; }
         avvia_progetto(a, c);
+        corpo = "{\"ok\":true}";
+        return true;
+    }
+    // I tagli dell'ATEM dal REC, per la corsia del programma (beta 12, sezione 9.93): li scrive
+    // registro_atem.py in atem-tagli.json nella cartella della registrazione, con i nomi delle sorgenti.
+    if (percorso == "/atem-tagli") {
+        std::string t = a.reg ? leggi_file((fs::u8path(a.reg->cartella()) / "atem-tagli.json").wstring()) : std::string();
+        while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+        corpo = t.size() > 2 && t.front() == '{' && t.back() == '}' ? t : "{\"tagli\":[],\"nomi\":{}}";
+        return true;
+    }
+    // Le registrazioni nella cartella di destinazione, per Review (beta 12): elenco_registrazioni.py, sola lettura.
+    if (percorso == "/registrazioni") {
+        std::error_code ec;
+        if (a.imp.cartella.empty() || !fs::is_directory(fs::u8path(a.imp.cartella), ec)) {
+            corpo = "{\"cartella\":" + json_testo(a.imp.cartella) + ",\"registrazioni\":[],\"errore\":\"choose the destination\"}";
+            return true;
+        }
+        if (a.imp.cartella.find('"') != std::string::npos) { codice = 409; corpo = "{\"errore\":\"invalid folder name\"}"; return true; }
+        std::string e;
+        const std::string r = Python::esegui("elenco_registrazioni.py", "--cartella \"" + a.imp.cartella + "\"", 30000, e);
+        const size_t k = r.find('{');
+        if (!e.empty() || k == std::string::npos) {
+            codice = 500; corpo = "{\"errore\":" + json_testo(e.empty() ? "no answer from elenco_registrazioni.py" : e) + "}"; return true;
+        }
+        corpo = r.substr(k);
+        while (!corpo.empty() && (corpo.back() == '\n' || corpo.back() == '\r')) corpo.pop_back();
+        return true;
+    }
+    // Apre in Esplora risorse la cartella di una registrazione: solo una cartella con registrazione.json o coi MOV
+    // del registratore, mai un percorso qualunque arrivato dalla richiesta.
+    if (percorso == "/apri-cartella") {
+        std::error_code ec;
+        const std::string c = parametro_query(query, "cartella");
+        const fs::path p = fs::u8path(c);
+        bool del_registratore = !c.empty() && fs::is_directory(p, ec) && (fs::exists(p / "registrazione.json", ec) || fs::exists(p / FILE_IN_CORSO, ec));
+        if (!del_registratore && !c.empty() && fs::is_directory(p, ec))
+            for (const auto& e : fs::directory_iterator(p, ec)) {
+                fs::path csv = e.path();
+                if (csv.extension() == ".mov" && fs::exists(csv.replace_extension(".csv"), ec)) { del_registratore = true; break; }
+            }
+        if (!del_registratore) { codice = 409; corpo = "{\"errore\":\"not a recording folder\"}"; return true; }
+        ShellExecuteW(nullptr, L"open", p.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         corpo = "{\"ok\":true}";
         return true;
     }

@@ -131,7 +131,7 @@ button { cursor:pointer; }
 .kvs b { font-weight:600; color:var(--testo); text-align:right; overflow-wrap:anywhere; }
 
 /* ---------------------------------------------------------------- Record: tracce e linea del tempo */
-.centro { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto auto; overflow:hidden; }
+.centro { display:grid; grid-template-rows:auto auto auto minmax(0,1fr) auto auto; overflow:hidden; }
 .centro-su { display:flex; align-items:center; gap:10px; height:44px; padding:0 12px; background:var(--testata); border-bottom:1px solid var(--linea); border-radius:4px 4px 0 0; white-space:nowrap; min-width:0; }
 .centro-su h3 { margin:0; font-size:13.5px; color:var(--chiaro); }
 .centro-su .conta { color:var(--tenue); font-size:12px; white-space:nowrap; }
@@ -152,6 +152,16 @@ button { cursor:pointer; }
 .bandierina { position:absolute; top:2px; width:8px; height:10px; margin-left:-4px; border-radius:2px 2px 5px 5px; z-index:1; }
 .testina-alto { position:absolute; bottom:0; width:13px; height:11px; margin-left:-6px; background:#a9a9b2; clip-path:polygon(0 0,100% 0,50% 100%); }
 .registrando .testina-alto { background:#f0503c; }
+/* la corsia del programma (beta 12): un blocco per ogni sorgente andata in onda, la dissolvenza sfumata */
+.programma { height:30px; background:#1b1b1e; border-bottom:1px solid var(--linea); padding-right:var(--sb); }
+.programma .angolo { background:var(--testata); border-right:1px solid var(--linea); display:flex; align-items:center; gap:9px; padding:0 12px; white-space:nowrap; overflow:hidden; min-width:0; }
+.programma .angolo b { flex:none; font-size:12.5px; font-weight:600; color:var(--chiaro); }
+.programma .angolo small { min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:var(--scuro); }
+.programma .angolo small em { font-style:normal; font-weight:600; color:var(--testo); }
+.pg-corsia { position:relative; overflow:hidden; background:var(--corsia); }
+.pg-blocco { position:absolute; top:4px; bottom:4px; border-radius:2px; overflow:hidden; background:hsl(var(--h) 30% 43%); box-shadow:inset -1px 0 0 #0d0d0f; }
+.pg-blocco.mix { background:linear-gradient(90deg, hsl(var(--h) 30% 43% / .2), hsl(var(--h) 30% 43%) var(--m, 12px)); }
+.pg-blocco span { position:absolute; left:5px; right:3px; top:0; bottom:0; display:flex; align-items:center; font-size:11px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 #tracce { overflow-y:auto; min-height:0; scrollbar-width:thin; scrollbar-color:#45454d var(--corsia); background:var(--corsia); }
 .traccia { border-bottom:1px solid var(--linea); height:var(--alt); }
@@ -165,8 +175,14 @@ button { cursor:pointer; }
                     background:repeating-linear-gradient(135deg,#17171a 0 7px,#111113 7px 14px); padding:0 4px; }
 .senza .anteprima .vuota { display:grid; }
 .tally { position:absolute; left:0; top:0; font-size:9.5px; font-weight:700; letter-spacing:.06em; padding:1px 5px; border-radius:0 0 2px 0; }
-.tally.pgm { background:var(--viola); color:#fff; }
+/* tally dall'ATEM (beta 12): rosso in onda, verde in anteprima, come i tally delle camere; viola le uscite dei M/E */
+.tally { z-index:2; }
+.tally.pgm { background:var(--rosso); color:#fff; }
+.tally.pvw { background:var(--verde); color:#0d0d0f; }
+.tally.uscita { background:var(--viola); color:#fff; }
 .tally:empty { display:none; }
+.anteprima.pgm { outline:3px solid var(--rosso); outline-offset:-2px; }
+.anteprima.pvw { outline:3px solid var(--verde); outline-offset:-2px; }
 .info { padding:0 10px; min-width:0; display:flex; flex-direction:column; gap:2px; }
 /* prima riga: il nome dell'ingresso, grande; accanto l'uscita aux e la sorgente dell'ATEM se è diversa dal nome */
 .nome { display:flex; align-items:center; gap:6px; white-space:nowrap; min-width:0; }
@@ -255,7 +271,20 @@ button { cursor:pointer; }
 
 /* ---------------------------------------------------------------- Record: i marker */
 .marker { display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
-#mk-elenco { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#45454d transparent; padding:6px; }
+.lh { padding:7px 8px; background:var(--testata); border-bottom:1px solid var(--linea); border-radius:4px 4px 0 0; }
+.lh .segmentato button { flex:1; height:24px; display:flex; align-items:center; justify-content:center; gap:6px; }
+.lh .segmentato button span { font-weight:500; color:var(--scuro); }
+.lh .segmentato button.si span { color:#c9c9ce; }
+#ev-tasto.allarme, #ev-tasto.allarme span { color:var(--ambra); }
+#mk-elenco, #ev-elenco { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#45454d transparent; padding:6px; }
+#ev-elenco, .marker.eventi #mk-elenco { display:none; }
+.marker.eventi #ev-elenco { display:block; }
+.ev-voce { display:grid; grid-template-columns:10px minmax(0,1fr); gap:10px; padding:7px 8px; border-radius:3px; }
+.ev-voce > i { width:9px; height:9px; border-radius:50%; margin-top:4px; background:#77777f; }
+.ev-voce.rec > i { background:var(--rosso); } .ev-voce.ok > i { background:var(--verde); } .ev-voce.attento > i { background:var(--ambra); }
+.ev-voce.male { background:#352b14; } .ev-voce.male > i { background:var(--ambra); }
+.ev-voce b { display:block; font-weight:600; font-size:13px; color:var(--chiaro); overflow-wrap:anywhere; }
+.ev-voce span { display:block; font-size:12px; color:var(--scuro); overflow-wrap:anywhere; }
 .mk-voce { display:grid; grid-template-columns:10px minmax(0,1fr); gap:10px; padding:7px 8px; border-radius:3px; }
 .mk-voce > i { width:8px; height:11px; border-radius:2px 2px 5px 5px; margin-top:3px; }
 .mk-voce b { display:block; font-weight:600; font-size:13px; color:var(--chiaro); overflow-wrap:anywhere; }
@@ -310,7 +339,19 @@ table.elenco { border-collapse:collapse; width:100%; font-size:12.5px; }
 
 /* ---------------------------------------------------------------- Review */
 #p-rev { grid-template-columns:minmax(0,1fr) 420px; }
-.rev-tracce { display:grid; grid-template-rows:auto minmax(0,1fr); overflow:hidden; }
+/* l'elenco alto quanto le registrazioni, fino al 55%, poi scorre: con due righe non lascia mezza pagina vuota */
+.rev-sinistra { display:grid; grid-template-rows:fit-content(55%) minmax(0,1fr); gap:4px; min-height:0; min-width:0; }
+.rev-elenco, .rev-tracce { display:grid; grid-template-rows:auto minmax(0,1fr); overflow:hidden; }
+.rev-elenco h2 #rev-dove { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.rev-elenco h2 .piccolo { margin-left:auto; height:22px; padding:0 10px; font-size:11.5px; flex:none; }
+/* «voce» è già dei misuratori di System: le righe delle registrazioni si chiamano «reg» */
+.elenco tr.reg { cursor:pointer; }
+.elenco tr.reg:hover td { background:#2c2c32; }
+.elenco tr.reg.sel td { background:#2f3d50; }
+.chip { display:inline-flex; align-items:center; height:19px; padding:0 7px; margin-left:6px; border-radius:3px; font-size:11px; font-weight:600; white-space:nowrap; background:#35353b; color:#b7b7bd; vertical-align:1px; }
+.chip:first-child { margin-left:0; }
+.chip.ok { background:#22382a; color:var(--verde); } .chip.attento { background:#3a2c10; color:var(--ambra); } .chip.male { background:#3a1715; color:#ff9d95; }
+.chip.ora { background:#5a1a17; color:#ff9d95; }
 .rev-lato { display:grid; gap:4px; align-content:start; overflow-y:auto; scrollbar-width:none; }
 .rev-titolo { padding:16px; }
 .rev-titolo h3 { margin:0; font-size:17px; color:var(--chiaro); overflow-wrap:anywhere; }
@@ -511,6 +552,10 @@ table.elenco { border-collapse:collapse; width:100%; font-size:12.5px; }
       <div class="angolo">Alt + wheel zooms · Shift + wheel scrolls</div>
       <div class="scala" id="scala"></div>
     </div>
+    <div class="riga programma" title="The program of the ATEM M/E 1, cut by cut, as the switcher sends it: the same cuts and dissolves the Resolve project gets">
+      <div class="angolo"><b>Program</b><small id="pg-nota">ATEM cuts appear here</small></div>
+      <div class="pg-corsia" id="pg-corsia"></div>
+    </div>
     <div id="tracce" class="alt-m"></div>
     <div class="aggiungi" id="aggiungi">
       <select id="agg-porta" title="A free input of this machine"></select>
@@ -526,8 +571,9 @@ table.elenco { border-collapse:collapse; width:100%; font-size:12.5px; }
   </div>
 
   <aside class="scheda marker">
-    <h2>Markers <span class="num" id="mk-conta"></span></h2>
+    <div class="lh"><div class="segmentato" id="registro"><button data-v="mk" class="si">Markers<span class="num" id="mk-conta"></span></button><button data-v="ev" id="ev-tasto" title="What happened since this window opened: REC and STOP, signals lost and back, dropped frames, the ATEM, the disk, the Resolve project">Events<span class="num" id="ev-conta"></span></button></div></div>
     <div id="mk-elenco"></div>
+    <div id="ev-elenco"></div>
     <div class="mk-scatola">
       <input type="text" class="marker-testo" id="mk-testo" placeholder="Marker text, Enter to add">
       <div class="colori" id="mk-colori"></div>
@@ -582,17 +628,24 @@ table.elenco { border-collapse:collapse; width:100%; font-size:12.5px; }
 
 <!-- ============================================================ REVIEW -->
 <section class="pagina" id="p-rev">
-  <div class="scheda rev-tracce">
-    <h2>Last recording <span id="rev-conta"></span></h2>
-    <div class="tabella" id="rev-corpo"></div>
+  <div class="rev-sinistra">
+    <div class="scheda rev-elenco">
+      <h2>Recordings <span id="rev-dove"></span><button class="piccolo" id="rev-rileggi" title="Reads the destination folder again">Refresh</button></h2>
+      <div class="tabella" id="rev-lista"></div>
+    </div>
+    <div class="scheda rev-tracce">
+      <h2>Tracks <span id="rev-conta"></span></h2>
+      <div class="tabella" id="rev-corpo"></div>
+    </div>
   </div>
   <aside class="rev-lato">
     <div class="scheda rev-titolo" id="rev-titolo"></div>
     <div class="scheda">
       <h2>After the show</h2>
       <div class="corpo azioni">
-        <button class="piccolo primario" id="progetto2" title="Builds the Resolve project of the last recording: opens Resolve if it is closed">Build Resolve project</button>
-        <button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project">HyperDeck clips…</button>
+        <button class="piccolo primario" id="progetto2" title="Builds the Resolve project of the selected recording again: opens Resolve if it is closed">Build project again</button>
+        <button class="piccolo" id="rev-cartella" title="Opens the folder of the selected recording in File Explorer">Open folder</button>
+        <button class="piccolo" id="hd-apri" title="Adds the clips of HyperDecks that recorded the same event, copied from their cards into a folder, to the Resolve project of the selected recording">HyperDeck clips…</button>
         <button class="piccolo" id="rp-apri" title="Creates the beta test report on your Desktop: you see what is inside, then you send it to the developer">Test report…</button>
         <button class="piccolo" data-vai="rec">Back to Record</button>
       </div>
@@ -851,7 +904,7 @@ async function salvaTracce(l) {
 // la lista di adesso letta dalle righe, coi nomi scritti e le R
 const traccePresenti = () => listaTracce().map(t => {
   const r = righe.find(x => x.d && x.d.porta === t.porta);
-  return r ? { porta:t.porta, nome: r.toccato ? r.input.value.trim() : "", armata:r.armata } : t;
+  return r ? { porta:t.porta, nome: r.toccato ? r.scritto : "", armata:r.armata } : t;
 });
 let mancanti = [];
 function costruisci() {
@@ -863,7 +916,8 @@ function costruisci() {
   if (!presenti.length) box.innerHTML = `<div class="vuoto-tracce">No tracks yet: add them with <b>+ Add track</b> below, or load a Setup.</div>`;
   righe = presenti.map((tr, i) => {
     const d = S.ingressi.find(x => x.porta === tr.porta);
-    const r = { n:d.n, d, livelli:[], toccato:!!tr.nome, picchi:[{}, {}], mostrati:[0, 0] };
+    // scritto: il nome dato a mano, tenuto a parte dal campo, che durante il REC mostra il file vero (sezione 9.94)
+    const r = { n:d.n, d, livelli:[], toccato:!!tr.nome, scritto:tr.nome || "", picchi:[{}, {}], mostrati:[0, 0] };
     const el = document.createElement("div");
     el.className = "riga traccia";
     el.innerHTML = `
@@ -892,10 +946,10 @@ function costruisci() {
     r.vu = [...el.querySelectorAll(".vu i")];
     r.armata = tr.armata;
     if (tr.nome) r.input.value = tr.nome;
-    r.input.oninput = () => { r.input.value = r.input.value.replace(/[\\/:*?"<>|=]/g, ""); r.toccato = r.input.value.trim() !== ""; };
-    // il nome scritto a mano resta nella lista, quindi anche nei setup
+    r.input.oninput = () => { r.input.value = r.input.value.replace(/[\\/:*?"<>|=]/g, ""); r.scritto = r.input.value.trim(); r.toccato = r.scritto !== ""; };
+    // il nome scritto a mano resta nella lista, quindi anche nei setup, e vale per tutte le registrazioni
     r.input.onblur = () => {
-      if (!r.input.value.trim()) { r.toccato = false; r.input.value = nomeBase(r.d); }
+      if (!r.input.value.trim()) { r.toccato = false; r.scritto = ""; r.input.value = nomeBase(r.d); }
       const prima = imp().tracce || "", dopo = scriviTracce(traccePresenti());
       if (dopo !== prima) salvaTracce(traccePresenti());
     };
@@ -1037,11 +1091,14 @@ function vai(p) {
   document.querySelectorAll("#pagine button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
   scrivi("pagina", p);
   tAdatta = 0; tPagine = 0;
+  if (p === "rev" && S && Date.now() - rv.letta > 5000) leggiRegistrazioni();
   if (S) aggiorna();
 }
 document.querySelectorAll("#pagine button").forEach(b => b.onclick = () => vai(b.dataset.p));
 document.querySelectorAll("[data-vai]").forEach(b => b.onclick = () => vai(b.dataset.vai));
-$("progetto2").onclick = () => $("progetto").click();
+$("progetto2").onclick = () => rifaiProgetto();
+$("rev-cartella").onclick = () => apriCartella();
+$("rev-rileggi").onclick = () => leggiRegistrazioni();
 
 // Domande e conferme nella grafica del programma, al posto delle finestre del browser (confirm e prompt).
 // Rende true o false; col campo di testo rende il testo scritto, o null se si annulla. Invio conferma, Esc annulla.
@@ -1107,7 +1164,6 @@ function pagine() {
   eraOccupato = occupato;
   $("eroe-formato").textContent = MODO + " · " + nomeCodec(i.mbit || "");
   $("rec").classList.toggle("reg", rec);
-  $("progetto2").disabled = $("progetto").disabled;
   const ora = performance.now();
   if (ora - tPagine < 900) return;
   tPagine = ora;
@@ -1166,28 +1222,8 @@ function pagine() {
       tab.querySelectorAll(".cella-rit").forEach(c => { const x = righe[+c.dataset.n]; if (x) c.appendChild(x.rit); });
     }
   }
-  // --- l'ultima registrazione, in Review
-  if (paginaOra === "rev") {
-    const ordine = listaTracce().map(x => x.porta), posto = x => { const k = ordine.indexOf(x.porta); return k < 0 ? 999 : k; };
-    const tr = [...(S.tracce || [])].sort((a, b) => posto(a) - posto(b)), c = S.cartella || "", per = flussoPerTraccia();
-    if (!c || !tr.length) {
-      $("rev-conta").textContent = "";
-      $("rev-corpo").innerHTML = '<div class="rev-vuoto">Nothing recorded in this session yet. After STOP the files, the frames written and dropped on every track, and the Resolve project appear here.</div>';
-      $("rev-titolo").innerHTML = '<h3>No recording yet</h3><p>Press REC in Record.</p>';
-    } else {
-      const d = durataSecondi(), tot = tr.reduce((a, x) => a + x.scritti / FPS * per, 0), persi = tr.reduce((a, x) => a + (x.persi || 0), 0);
-      const prj = { 1:"being built…", 2:"built", 3:"not built" }[S.progetto_stato] || (String(i.resolve) === "false" ? "not requested" : "—");
-      $("rev-conta").textContent = (rec ? "recording now · " : "") + tr.length + (tr.length === 1 ? " track" : " tracks");
-      $("rev-corpo").innerHTML = '<table class="elenco"><tr><th>File</th><th>Written</th><th>Size</th><th>Dropped</th><th>Repeated</th><th>Black</th><th>Max queue</th><th></th></tr>' +
-        tr.map(x => `<tr><td><b>${html(x.file)}</b></td><td>${tc(x.scritti)}</td><td>${it(x.scritti / FPS * per / 1e9, 1)} GB</td><td class="${x.persi ? "male" : ""}">${x.persi}</td>
-          <td>${x.riempiti}</td><td class="${x.neri ? "attento" : ""}">${(x.neri || 0).toLocaleString("en-US")}</td><td>${x.coda_max}</td><td class="male">${html(x.errore || "")}</td></tr>`).join("") + "</table>";
-      $("rev-titolo").innerHTML = `<h3>${html(c.split("\\").pop())}</h3><p>${html(c)}</p>
-        <div class="numeri"><div><span>Duration</span><b>${tc(d * FPS, false)}</b></div><div><span>Tracks</span><b>${tr.length}</b></div>
-        <div><span>Dropped</span><b style="color:${persi ? "#ff9d95" : "var(--verde)"}">${persi}</b></div><div><span>Size</span><b>${it(tot / 1e9, 0)} GB</b></div></div>
-        <div class="kvs" style="margin-top:14px"><span>Start</span><b>${html(S.inizio || "—")}</b><span>Markers</span><b>${(S.elenco_marker || []).length}</b>
-        <span>Resolve project</span><b>${html(S.progetto || prj)}</b></div>`;
-    }
-  }
+  // --- le registrazioni, in Review
+  if (paginaOra === "rev") disegnaReview();
 }
 
 const nomeBase = d => (d.nome_sorgente || d.porta.replace(/^DeckLink\s+/i, "")).replace(/[\\/:*?"<>|]/g, "");
@@ -1294,6 +1330,300 @@ function markerNelTempo() {
   return S.elenco_marker.map(m => ({ ...m, t:(m.tc - p) / FPS }));
 }
 
+// ============================================================ l'ATEM dal vivo: tally e corsia del programma (beta 12, sezione 9.93)
+// atem-vivo.json lo scrive registro_atem.py: da fermo l'ascolto, al REC il registro dei tagli. Vale solo se è
+// fresco: scritto da meno di 3 secondi, con lo stato iniziale ricevuto e l'ATEM che risponde.
+const aperta = Date.now();
+function atemVivo() {
+  const v = S && S.atem_vivo;
+  return imp().atem && v && v.pronto && !v.muto && Date.now() / 1000 - v.t < 3 ? v : null;
+}
+// la sorgente sull'aux di un ingresso: quella dal vivo se c'è, se no quella letta coi nomi
+const sorgenteDi = (x, v = atemVivo()) => v && v.aux && v.aux[x.aux] != null ? v.aux[x.aux] : x.sorgente;
+const uscitaMe = s => s >= 10010 && s < 10100 ? "ME" + Math.floor((s - 10000) / 10) + (s % 10 === 1 ? " PVW" : " PGM") : "OUT";
+function tallyDi(x) {
+  if (!x.aperta || !(x.aux > 0)) return null;               // senza mappa degli ingressi la sorgente non si sa
+  const v = atemVivo(), s = sorgenteDi(x, v);
+  if (s >= 10000) return { classe:"uscita", testo:uscitaMe(s) };
+  if (!v || !s) return null;
+  // durante una dissolvenza sono in onda tutte e due, come nei tally dell'ATEM
+  if (s === v.pgm || (v.mix && s === v.pvw)) return { classe:"pgm", testo:"PGM" };
+  if (s === v.pvw) return { classe:"pvw", testo:"PVW" };
+  return null;
+}
+// i nomi come li dà l'ATEM: dai tagli della registrazione, poi da quelli letti, poi dalla traccia
+function nomeSorgente(s, nomi) {
+  if (s === null || s === undefined) return "—";
+  if (nomi && nomi[s]) return nomi[s];
+  if (S.nomi_atem && S.nomi_atem[s]) return S.nomi_atem[s];
+  const r = righe.find(r => r.d && r.d.aux > 0 && sorgenteDi(r.d) === s);
+  return r ? r.input.value || nomeBase(r.d) : "source " + s;
+}
+// una tinta per sorgente con l'angolo aureo sul posto della sua traccia: Camera 1, 2, 3… tinte lontane fra loro;
+// le sorgenti senza traccia dopo, nell'ordine in cui vanno in onda
+function tinteCorsia() {
+  const posti = new Map();
+  righe.forEach(r => { const s = r.d && r.d.aux > 0 ? sorgenteDi(r.d) : null; if (s !== null && s !== undefined && !posti.has(s)) posti.set(s, posti.size); });
+  return s => { if (!posti.has(s)) posti.set(s, posti.size); return Math.round((posti.get(s) * 137.508 + 200) % 360); };
+}
+const pg = { cartella:"", chiave:"", dati:null, inVolo:false, html:"" };
+async function leggiTagli(chiave) {
+  pg.inVolo = true;
+  try { const j = await chiedi("/atem-tagli"); if (pg.cartella === (S.cartella || "")) { pg.dati = j; pg.chiave = chiave; } } catch (e) {}
+  pg.inVolo = false;
+}
+// si rilegge a ogni taglio mentre si registra (cambia «rev») e a ogni cambio di fase
+function curaTagli() {
+  if (pg.cartella !== (S.cartella || "")) { pg.cartella = S.cartella || ""; pg.dati = null; pg.chiave = ""; }
+  if (!S.cartella || pg.inVolo || !imp().atem) return;
+  const v = S.atem_vivo, chiave = S.fase + "#" + (registra() && v ? v.rev : "");
+  if (chiave !== pg.chiave) leggiTagli(chiave);
+}
+function corsiaProgramma(a, b, d) {
+  const box = $("pg-corsia"), span = b - a, pos = t => (t - a) / span * 100, W = box.clientWidth || 800;
+  const i = imp(), v = atemVivo(), p = partenzaFotogrammi(), D = pg.dati;
+  const nomi = D && D.nomi || null, tagli = D && D.tagli || [];
+  let h = "";
+  if (p !== null && S.inizio && D && (D.pgm0 != null || tagli.length)) {
+    const giorno = giornoTc();
+    const tempo = k => { if (k.tc === null || k.tc === undefined) return null; let x = k.tc - p; if (x < -giorno / 2) x += giorno; else if (x > giorno / 2) x -= giorno; return x / FPS; };
+    const tonoDi = tinteCorsia(), pezzi = D.pgm0 != null ? [[0, D.pgm0, 0]] : [];          // [inizio in secondi, sorgente, fotogrammi del mix]
+    tagli.forEach(k => { const t = tempo(k); if (t !== null) pezzi.push([Math.max(0, t), k.s, k.tipo === "mix" ? k.d : 0]); });
+    pezzi.forEach((q, k) => {
+      const t0 = q[0], t1 = Math.min(d, k + 1 < pezzi.length ? pezzi[k + 1][0] : d);
+      if (t1 <= a || t0 >= b || t1 <= t0) return;
+      const x0 = Math.max(0, pos(t0)), x1 = Math.min(100, pos(t1)), w = (x1 - x0) / 100 * W;
+      if (w <= 0) return;
+      const m = q[2] ? Math.max(3, Math.min(w, q[2] / FPS / span * W)) : 0, n = nomeSorgente(q[1], nomi);
+      h += `<div class="pg-blocco${m ? " mix" : ""}" style="left:${x0.toFixed(3)}%;width:${(x1 - x0).toFixed(3)}%;--h:${tonoDi(q[1])}${m ? ";--m:" + m.toFixed(1) + "px" : ""}"` +
+        ` title="${html(n)}${q[2] ? " · dissolve " + q[2] + " frames" : ""}">${w >= 34 ? `<span>${html(n)}</span>` : ""}</div>`;
+    });
+  }
+  markerNelTempo().forEach(m => { if (m.t >= a && m.t <= b) h += `<div class="linea-marker" style="left:${pos(m.t)}%;background:${TINTE_MARKER[m.colore] || "#999"}"></div>`; });
+  if (S.inizio && d >= a && d <= b) h += `<div class="testina" style="left:${pos(d)}%"></div>`;
+  if (h !== pg.html) { box.innerHTML = h; pg.html = h; }
+  // la nota accanto a «Program»: i conti dei tagli e chi è in onda
+  const nc = tagli.filter(k => k.tipo === "cut").length, nm = tagli.length - nc, av = S.atem_vivo;
+  const onda = v ? `on air: <em>${html(nomeSorgente(v.mix ? v.pvw : v.pgm, nomi))}</em>${v.mix ? " · dissolving" : ""}` : "";
+  const muto = av && av.errore ? html(av.errore) : Date.now() - aperta < 10000 ? "waiting for the ATEM…" : "ATEM not responding";
+  let nota;
+  if (!i.atem) nota = "no ATEM in Settings: no cuts and no tally";
+  else if (S.cartella && D) nota = `${nc} ${nc === 1 ? "cut" : "cuts"} · ${nm} ${nm === 1 ? "dissolve" : "dissolves"} · ` + (onda || muto);
+  else nota = (onda || muto) + " · cuts appear here at REC";
+  if ($("pg-nota").innerHTML !== nota) $("pg-nota").innerHTML = nota;
+}
+
+// ============================================================ il registro degli eventi (beta 12, sezione 9.93)
+// Lo tiene la pagina confrontando ogni /stato col precedente: quello che è successo da quando la finestra è
+// aperta. Un cambio conta quando dura: 4 secondi per l'ATEM, 1 per i segnali, così il passaggio dall'ascolto
+// al registro del REC, o un ingresso che si riapre, non diventa un allarme.
+const eventi = [];
+let evVista = "mk", evPrima = null, evAllarmi = 0, evVer = 0, evMostrata = -1, evDisco = {};
+function evento(classe, testo, nota, chiave) {
+  const ora = new Date().toLocaleTimeString("en-GB"), t = S && S.timecode && !/^-/.test(S.timecode) ? S.timecode : "";
+  eventi.unshift({ classe, testo, nota, tc:t, ora, ms:Date.now(), chiave });
+  if (eventi.length > 500) eventi.pop();
+  if (classe === "male" && evVista !== "ev") evAllarmi++;
+  evVer++;
+}
+// un evento ancora in corso (stessa chiave, aggiornato da meno di 10 secondi) cambia solo la nota
+function aggiornaEvento(chiave, nota) {
+  const e = eventi.find(x => x.chiave === chiave && Date.now() - x.ms < 10000);
+  if (!e) return false;
+  e.nota = nota; e.ms = Date.now(); evVer++;
+  return true;
+}
+const stabili = {};
+function stabile(chiave, valore, ms) {
+  const s = stabili[chiave];
+  if (!s) { stabili[chiave] = { segnato:valore, nuovo:valore, da:Date.now() }; return null; }
+  if (valore !== s.nuovo) { s.nuovo = valore; s.da = Date.now(); }
+  if (s.nuovo === s.segnato || Date.now() - s.da < ms) return null;
+  const prima = s.segnato; s.segnato = s.nuovo;
+  return [prima, s.nuovo];
+}
+function curaEventi() {
+  const i = imp(), rec = registra(), tr = S.tracce || [];
+  const ora = { rec, prj:S.progetto_stato, persi:{}, neri:{} };
+  tr.forEach(t => { ora.persi[t.porta] = t.persi || 0; ora.neri[t.porta] = t.neri || 0; });
+  const P = evPrima; evPrima = ora;
+  const nome = porta => { const r = righe.find(r => r.d && r.d.porta === porta); return r ? r.input.value || nomeBase(r.d) : porta; };
+  // l'ATEM
+  const at = stabile("atem", !i.atem ? "nessuno" : atemVivo() ? "si" : "no", 4000);
+  if (at && i.atem) {
+    if (at[1] === "si") evento("ok", "ATEM connected", i.atem + (at[0] === "no" ? " · answering again" : ""));
+    else if (at[1] === "no") evento(rec ? "male" : "attento", "ATEM not responding", rec ? i.atem + " · no cuts are logged while it does not answer" : i.atem);
+  }
+  // i segnali delle tracce che registrano, o che registreranno
+  righe.forEach(r => {
+    const x = S.ingressi[r.n] || r.d, c = stabile("segnale " + x.porta, !!(x.aperta && x.segnale), 1000);
+    const conta = rec ? tr.some(t => t.porta === x.porta) : r.armata;
+    if (!c || !conta) return;
+    if (!c[1]) evento(rec ? "male" : "attento", nome(x.porta) + " lost signal", rec ? "black with timecode is being written" : "no signal on " + x.porta, "nero " + x.porta);
+    else evento("ok", nome(x.porta) + " signal back", rec ? (ora.neri[x.porta] || 0).toLocaleString("en-US") + " black frames written in this recording" : x.porta);
+  });
+  if (!P) return;
+  if (rec && !P.rec) { evDisco = {}; evento("rec", "Recording started", (S.cartella || "").split("\\").pop() + (S.inizio ? " · start " + S.inizio : "")); }
+  if (!rec && P.rec) evento("info", "Recording stopped", "duration " + tc(durataSecondi() * FPS, false) + " · " + (S.persi || 0) + ((S.persi || 0) === 1 ? " frame" : " frames") + " dropped");
+  if (rec && P.rec) {
+    Object.keys(ora.persi).forEach(p => {
+      const a0 = P.persi[p] || 0, a1 = ora.persi[p], testo = a1 + (a1 === 1 ? " frame dropped" : " frames dropped") + " in this recording";
+      if (a1 > a0 && !aggiornaEvento("persi " + p, testo)) evento("male", nome(p) + ": frames dropped", testo, "persi " + p);
+    });
+    Object.keys(ora.neri).forEach(p => {
+      const a0 = P.neri[p] || 0, a1 = ora.neri[p], testo = a1.toLocaleString("en-US") + " black frames with timecode written";
+      if (a1 > a0 && !aggiornaEvento("nero " + p, testo)) evento("attento", nome(p) + ": black frames", testo, "nero " + p);
+    });
+    const resta = autonomiaSecondi();
+    [30, 10, 3].forEach(m => {
+      if (resta < m * 60 && !evDisco[m]) { evDisco[m] = true; evento(m <= 10 ? "male" : "attento", "Disk: less than " + m + " minutes left", it(S.disco.libero_gb, 0) + " GB free"); }
+    });
+  }
+  if (ora.prj !== P.prj) {
+    const dove = (S.cartella || "").split("\\").pop();
+    if (ora.prj === 1) evento("info", "Resolve project being built", dove);
+    else if (ora.prj === 2 && P.prj === 1) evento("ok", "Resolve project built", S.progetto || dove);
+    else if (ora.prj === 3) evento("male", "Resolve project not built", S.progetto || dove);
+  }
+}
+function mostraEventi() {
+  $("ev-conta").textContent = eventi.length ? String(eventi.length) : "";
+  $("ev-tasto").classList.toggle("allarme", evAllarmi > 0);
+  if (evMostrata === evVer) return;
+  evMostrata = evVer;
+  $("ev-elenco").innerHTML = eventi.length ? eventi.map(e => `<div class="ev-voce ${e.classe}" title="${html(e.ora)}"><i></i><div><b>${html(e.testo)}</b>` +
+      `<span class="num">${html([e.tc || e.ora, e.nota].filter(Boolean).join(" · "))}</span></div></div>`).join("")
+    : `<div class="mk-vuoto">No events yet. REC and STOP, signals lost and back, dropped frames, the ATEM, the disk and the Resolve project are listed here as they happen, since this window opened.</div>`;
+}
+
+// ============================================================ Review: le registrazioni della destinazione (beta 12, sezione 9.93)
+// Le elenca script\elenco_registrazioni.py, sola lettura. Si rilegge entrando in Review, col tasto Refresh, a
+// registrazione finita e ogni 30 secondi; mai mentre si registra, per lasciare il disco alla registrazione.
+const rv = { dati:null, inVolo:false, letta:0, sel:"", fase:"" };
+const stessa = (x, y) => (x || "").replace(/\\+$/, "").toLowerCase() === (y || "").replace(/\\+$/, "").toLowerCase();
+async function leggiRegistrazioni() {
+  if (rv.inVolo || inRegistrazione()) return;
+  rv.inVolo = true; rv.letta = Date.now();
+  try { rv.dati = await chiedi("/registrazioni"); } catch (e) { rv.dati = { registrazioni:[], errore:"the recorder did not answer" }; }
+  rv.inVolo = false; tPagine = 0;
+  if (S && paginaOra === "rev") pagine();
+}
+function curaRegistrazioni() {
+  if (S.fase === "ferma" && rv.fase && rv.fase !== "ferma") setTimeout(leggiRegistrazioni, 1500);   // a registrazione finita
+  rv.fase = S.fase;
+  if (paginaOra === "rev" && !inRegistrazione() && (!rv.dati || Date.now() - rv.letta > 30000)) leggiRegistrazioni();
+}
+const pesoTesto = b => b === null || b === undefined ? "—" : b >= 1e12 ? it(b / 1e12, 2) + " TB" : b >= 1e9 ? it(b / 1e9, b >= 1e11 ? 0 : 1) + " GB" : it(b / 1e6, 0) + " MB";
+// troncata come un timecode, così l'elenco e il riquadro della stessa registrazione danno la stessa durata
+const hms = s => { if (s === null || s === undefined || !isFinite(s)) return "—"; s = Math.floor(s + 1e-6); return String(Math.floor(s / 3600)).padStart(2, "0") + ":" + String(Math.floor(s / 60) % 60).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+const MESI = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dataTesto = a => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(a || ""); return m ? [+m[3] + " " + MESI[+m[2] - 1] + " " + m[1], m[4] + ":" + m[5]] : ["—", "—"]; };
+// le registrazioni da mostrare: quelle lette, più quella in corso se l'elenco è di prima del REC
+function registrazioniInElenco() {
+  const L = ((rv.dati || {}).registrazioni || []).slice();
+  if (S.cartella && inRegistrazione() && !L.some(x => stessa(x.percorso, S.cartella)))
+    L.unshift({ nome:S.cartella.split("\\").pop(), percorso:S.cartella, ora:true });
+  return L;
+}
+function selezionata(L) {
+  let x = rv.sel && L.find(r => stessa(r.percorso, rv.sel));
+  if (!x) x = (S.cartella && L.find(r => stessa(r.percorso, S.cartella))) || L[0] || null;
+  rv.sel = x ? x.percorso : "";
+  return x;
+}
+function chipProgetto(x, sessione) {
+  if (sessione && S.progetto_stato === 1) return '<span class="chip attento">Building…</span>';
+  if (sessione && S.progetto_stato === 3) return '<span class="chip male">Not built</span>';
+  if (sessione && S.progetto_stato === 2) return '<span class="chip ok">Built</span>';
+  return x.progetto === "built" ? '<span class="chip ok">Built</span>' : x.progetto === "failed" ? '<span class="chip male">Failed</span>' : '<span class="chip">Not built</span>';
+}
+function disegnaReview() {
+  const i = imp(), rec = inRegistrazione(), L = registrazioniInElenco(), x = selezionata(L), D = rv.dati || {};
+  $("rev-dove").textContent = (D.cartella || i.cartella || "no destination") + (L.length ? " · " + (D.tutte > L.length ? L.length + " of " + D.tutte : L.length) : "");
+  $("rev-rileggi").disabled = rec || rv.inVolo;
+  if (!L.length) {
+    $("rev-lista").innerHTML = `<div class="rev-vuoto">${rv.inVolo || !rv.dati ? "Reading the destination folder…" : D.errore ? html(D.errore) + "." : "No recordings in this folder yet."} Every recording made in the destination folder appears here, the newest first, with its tracks, dropped frames, cuts and Resolve project.</div>`;
+  } else {
+    $("rev-lista").innerHTML = '<table class="elenco"><tr><th>Date</th><th>Start</th><th>Name</th><th>Duration</th><th>Tracks</th><th>Dropped</th><th>Size</th><th>Cuts · dissolves</th><th>Resolve project</th></tr>' +
+      L.map((r, k) => {
+        const sessione = stessa(r.percorso, S.cartella), [g, h] = r.ora ? ["now", "—"] : dataTesto(r.avvio);
+        const chip = r.ora || (sessione && rec) ? '<span class="chip ora">recording now</span>' : r.riparata ? '<span class="chip attento">repaired</span>' : r.interrotta ? '<span class="chip attento">interrupted</span>' : "";
+        return `<tr class="reg${x && stessa(r.percorso, x.percorso) ? " sel" : ""}" data-k="${k}"><td class="d">${g}</td><td>${h}</td><td><b>${html(r.nome)}</b>${chip}</td>` +
+          `<td>${r.ora ? "—" : hms(r.durata_s)}</td><td>${r.ora ? (S.tracce || []).length : r.tracce || (r.dettaglio || []).length || r.mov || "—"}</td>` +
+          `<td class="${r.persi ? "male" : ""}">${r.persi === null || r.persi === undefined ? "—" : r.persi}</td><td>${pesoTesto(r.byte)}</td>` +
+          `<td>${r.tagli === null || r.tagli === undefined ? "—" : r.tagli + " · " + r.dissolvenze}</td><td>${r.ora ? "—" : chipProgetto(r, sessione)}</td></tr>`;
+      }).join("") + "</table>";
+    $("rev-lista").querySelectorAll("tr.reg").forEach(t => t.onclick = () => { rv.sel = L[+t.dataset.k].percorso; tPagine = 0; pagine(); });
+  }
+  const sessione = !!x && stessa(x.percorso, S.cartella) && (S.tracce || []).length > 0;
+  $("progetto2").disabled = !x || x.ora || rec || S.progetto_stato === 1 || !(sessione || x.registro_atem);
+  $("progetto2").title = x && !x.ora && !sessione && !x.registro_atem ? "No ATEM log in this recording: the Resolve project cannot be built" : "Builds the Resolve project of the selected recording again: opens Resolve if it is closed";
+  $("rev-cartella").disabled = !x;
+  $("hd-apri").disabled = !x || rec;
+  if (!x) {
+    $("rev-conta").textContent = "";
+    $("rev-corpo").innerHTML = '<div class="rev-vuoto">Nothing recorded yet. After STOP the files, the frames written and dropped on every track, and the Resolve project appear here.</div>';
+    $("rev-titolo").innerHTML = '<h3>No recording yet</h3><p>Press REC in Record.</p>';
+    return;
+  }
+  if (sessione) {
+    // la registrazione di questa sessione: i conti dal vivo del registratore
+    const ordine = listaTracce().map(t => t.porta), posto = t => { const k = ordine.indexOf(t.porta); return k < 0 ? 999 : k; };
+    const tr = [...S.tracce].sort((a, b) => posto(a) - posto(b)), per = flussoPerTraccia();
+    // i pesi veri dei file quando l'elenco li ha letti, altrimenti la stima dal flusso (durante la registrazione)
+    const senzaMov = f => String(f || "").replace(/\.mov$/i, "").toLowerCase();
+    const veri = new Map((x.dettaglio || []).filter(t => typeof t.byte === "number").map(t => [senzaMov(t.file), t.byte]));
+    const pesoDi = t => veri.has(senzaMov(t.file)) ? veri.get(senzaMov(t.file)) : t.scritti / FPS * per;
+    const d = durataSecondi(), persi = tr.reduce((a, t) => a + (t.persi || 0), 0);
+    const tot = !rec && typeof x.byte === "number" && x.byte > 0 ? x.byte : tr.reduce((a, t) => a + pesoDi(t), 0);
+    const prj = { 1:"being built…", 2:"built", 3:"not built" }[S.progetto_stato] || (String(i.resolve) === "false" ? "not requested" : "—");
+    const T = pg.dati && pg.dati.tagli || [], nc = T.filter(k => k.tipo === "cut").length;
+    $("rev-conta").textContent = (rec ? "recording now · " : "") + tr.length + (tr.length === 1 ? " track" : " tracks");
+    $("rev-corpo").innerHTML = '<table class="elenco"><tr><th>File</th><th>Written</th><th>Size</th><th>Dropped</th><th>Repeated</th><th>Black</th><th>Max queue</th><th></th></tr>' +
+      tr.map(t => `<tr><td><b>${html(t.file)}</b></td><td>${tc(t.scritti)}</td><td>${it(pesoDi(t) / 1e9, 1)} GB</td><td class="${t.persi ? "male" : ""}">${t.persi}</td>
+        <td>${t.riempiti}</td><td class="${t.neri ? "attento" : ""}">${(t.neri || 0).toLocaleString("en-US")}</td><td>${t.coda_max}</td><td class="male">${html(t.errore || "")}</td></tr>`).join("") + "</table>";
+    $("rev-titolo").innerHTML = `<h3>${html(x.nome)}</h3><p>${html(x.percorso)}</p>
+      <div class="numeri"><div><span>Duration</span><b>${tc(d * FPS, false)}</b></div><div><span>Tracks</span><b>${tr.length}</b></div>
+      <div><span>Dropped</span><b style="color:${persi ? "#ff9d95" : "var(--verde)"}">${persi}</b></div><div><span>Size</span><b>${pesoTesto(tot)}</b></div></div>
+      <div class="kvs" style="margin-top:14px"><span>Start</span><b>${html(S.inizio || "—")}</b><span>Cuts from the ATEM</span><b>${i.atem ? nc + " cuts · " + (T.length - nc) + " dissolves" : "no ATEM"}</b>
+      <span>Markers</span><b>${(S.elenco_marker || []).length}</b><span>Resolve project</span><b>${html(S.progetto || prj)}</b></div>`;
+    return;
+  }
+  // una registrazione di prima: quello che ha lasciato nella sua cartella
+  const tr = x.dettaglio || [], [g, h] = dataTesto(x.avvio);
+  $("rev-conta").textContent = tr.length + (tr.length === 1 ? " track" : " tracks") + " · from the files in the folder";
+  $("rev-corpo").innerHTML = !tr.length ? '<div class="rev-vuoto">No track files in this folder.</div>' :
+    '<table class="elenco"><tr><th>File</th><th>Written</th><th>Size</th><th>Dropped</th><th>Repeated</th><th>Black</th><th>Max queue</th></tr>' +
+    tr.map(t => `<tr><td><b>${html(t.file)}</b></td><td>${t.scritti === undefined ? "—" : t.scritti.toLocaleString("en-US") + " frames"}</td><td>${pesoTesto(t.byte)}</td>
+      <td class="${t.persi ? "male" : ""}">${t.persi ?? "—"}</td><td>${t.riempiti ?? "—"}</td><td class="${t.neri ? "attento" : ""}">${t.neri === undefined ? "—" : t.neri.toLocaleString("en-US")}</td><td>${t.coda_max ?? "—"}</td></tr>`).join("") + "</table>";
+  const stato = x.progetto === "built" ? "built" + (x.progetto_testo ? " · " + x.progetto_testo : "") : x.progetto === "failed" ? "not built" + (x.progetto_testo ? ": " + x.progetto_testo : "") : "not built yet";
+  $("rev-titolo").innerHTML = `<h3>${html(x.nome)}</h3><p>${html(x.percorso)}</p>
+    ${x.riparata ? '<p style="color:var(--ambra)">Interrupted and repaired: the files end at the last whole frame, the originals are in the «interrotti» folder.</p>'
+      : x.interrotta ? '<p style="color:var(--ambra)">Interrupted: the recorder repairs it the next time it opens with this destination.</p>' : ""}
+    <div class="numeri"><div><span>Duration</span><b>${hms(x.durata_s)}</b></div><div><span>Tracks</span><b>${x.tracce || tr.length}</b></div>
+    <div><span>Dropped</span><b style="color:${x.persi ? "#ff9d95" : x.persi === 0 ? "var(--verde)" : "var(--testo)"}">${x.persi ?? "—"}</b></div><div><span>Size</span><b>${pesoTesto(x.byte)}</b></div></div>
+    <div class="kvs" style="margin-top:14px"><span>Recorded</span><b>${g} · ${h}</b><span>Timecode</span><b>${html(x.inizio || "—")} → ${html(x.fine || "—")}</b>
+    <span>Format</span><b>${html(x.modo || "—")}</b>
+    <span>Cuts from the ATEM</span><b>${x.tagli === null || x.tagli === undefined ? (x.registro_atem ? "in the ATEM log" : "no ATEM log") : x.tagli + " cuts · " + x.dissolvenze + " dissolves"}</b>
+    <span>Markers</span><b>${x.marker ?? "—"}</b><span>Black frames</span><b>${x.neri === null || x.neri === undefined ? "—" : x.neri.toLocaleString("en-US")}</b>
+    <span>Resolve project</span><b>${html(stato)}</b><span>Premiere Pro</span><b>${x.premiere ? "XML and EDL written" : "—"}</b>
+    <span>HyperDeck</span><b>${x.hyperdeck ? "recorded with REC" : "—"}</b></div>`;
+}
+async function rifaiProgetto() {
+  const L = registrazioniInElenco(), x = selezionata(L);
+  if (!x || x.ora) return;
+  const j = await chiedi("/progetto?cartella=" + enc(x.percorso));
+  if (j.errore) return avviso(j.errore);
+  avviso("Resolve project being built: " + x.nome);
+  setTimeout(leggiRegistrazioni, 4000);
+}
+async function apriCartella() {
+  const x = selezionata(registrazioniInElenco());
+  if (!x) return;
+  const j = await chiedi("/apri-cartella?cartella=" + enc(x.percorso));
+  if (j.errore) avviso(j.errore);
+}
+
 // ============================================================ aggiornamento della pagina a ogni /stato
 function aggiorna() {
   if (!S) return;
@@ -1340,6 +1670,9 @@ function aggiorna() {
   aggiornaRisorse();
   sistema();
   mostraMarker();
+  curaEventi();
+  mostraEventi();
+  curaRegistrazioni();
   esitoRec();
   pagine();
 }
@@ -1396,6 +1729,8 @@ function aggiornaTracce() {
   const [a, b] = finestra(d), span = b - a, pos = t => (t - a) / span * 100;
   righello(a, b, d, p !== null ? p : vivo);
   barraTempo(a, b, d);
+  curaTagli();
+  corsiaProgramma(a, b, d);
   const tracce = (S.tracce || []);
   const mk = markerNelTempo();
   righe.forEach((r, i) => {
@@ -1411,10 +1746,13 @@ function aggiornaTracce() {
     arma.disabled = inRegistrazione() || !x.aperta;
     // il nome: durante la registrazione quello del file vero, prima quello della sorgente o quello scritto
     r.input.disabled = inRegistrazione();
-    if (t) r.input.value = t.file.replace(/\.mov$/i, "");
-    else if (!r.toccato && document.activeElement !== r.input) r.input.value = nomeBase(x);
-    const tl = el.querySelector(".tally");
-    tl.className = "tally" + (x.sorgente >= 10000 ? " pgm" : ""); tl.textContent = x.sorgente >= 10000 ? "PGM" : "";
+    // il file vero solo mentre registra: dopo lo STOP il campo torna al nome scritto, o a quello della sorgente,
+    // e si lascia riscrivere (fino alla beta 11 restava sul file dell'ultima registrazione)
+    if (t && inRegistrazione()) r.input.value = t.file.replace(/\.mov$/i, "");
+    else if (document.activeElement !== r.input) { const v = r.toccato ? r.scritto : nomeBase(x); if (r.input.value !== v) r.input.value = v; }
+    const tl = el.querySelector(".tally"), ta = tallyDi(x), ant = el.querySelector(".anteprima");
+    tl.className = "tally" + (ta ? " " + ta.classe : ""); tl.textContent = ta ? ta.testo : "";
+    ant.classList.toggle("pgm", !!ta && ta.classe === "pgm"); ant.classList.toggle("pvw", !!ta && ta.classe === "pvw");
     const sch = schedaEIngresso(x.porta);
     el.querySelector(".via").innerHTML = `<b>${html(sch[0])}</b>` + (sch[1] ? `<i>·</i>Input ${html(sch[1])}` : "") + `<i>·</i>${html(x.connettore)}` +
       (x.formato ? "<i>·</i>" + (x.formato_registratore && x.formato_registratore !== MODO
@@ -1673,7 +2011,7 @@ async function rec(forza, avvisiVisti) {
     } finally { $("rec").disabled = false; }
   }
   let q = "armate=" + a.map(r => r.n).join(",");
-  a.forEach(r => q += "&nome" + r.n + "=" + enc((r.toccato && r.input.value.trim()) || nomeBase(r.d)));
+  a.forEach(r => q += "&nome" + r.n + "=" + enc((r.toccato && r.scritto) || nomeBase(r.d)));
   if (forza) q += "&forza=1";
   forzaInviata = !!forza;
   const j = await chiedi("/rec?" + q);
@@ -1685,7 +2023,9 @@ async function rec(forza, avvisiVisti) {
 function esitoRec() {
   if (!attesaRec || S.fase === "partenza") return;
   attesaRec = false;
-  if (S.fase === "registra") { righe.forEach(r => r.toccato = false); return; }
+  // fino alla beta 11 qui i nomi scritti a mano si dimenticavano, e dalla seconda registrazione i file
+  // prendevano il nome della sorgente: un residuo del 7 novembre, da prima che i nomi stessero nei setup
+  if (S.fase === "registra") return;
   if (!S.errore) return;
   // il rifiuto per semaforo rosso si riconosce dai controlli e non dal testo dell'errore, che ora è in inglese
   const rossi = (S.controlli || []).some(c => c.esito === "rosso");
@@ -1945,6 +2285,9 @@ function abbinamentiSalvati() {
 }
 function apriHd() {
   if (inRegistrazione()) return;
+  // la registrazione scelta in Review, se c'è; se no quella di questa sessione
+  const x = S ? selezionata(registrazioniInElenco()) : null;
+  if (x && !x.ora && !stessa(x.percorso, hd.reg)) { hd.reg = x.percorso; hd.dati = null; }
   if (!hd.reg && S && S.cartella) hd.reg = S.cartella;
   $("hd-errore").textContent = "";
   disegnaHd();
@@ -2026,6 +2369,10 @@ function segmentato(id, fai) {
   const v = q || leggi(id, null), b = v && $(id).querySelector(`[data-v="${v}"]`);
   if (b) b.click();
 }
+segmentato("registro", v => {
+  evVista = v; document.querySelector(".marker").classList.toggle("eventi", v === "ev");
+  if (v === "ev") { evAllarmi = 0; if (S) mostraEventi(); }
+});
 segmentato("altezza", v => { $("tracce").className = "alt-" + v; tAdatta = 0; });
 { let q = null; try { q = new URLSearchParams(location.search).get("pagina"); } catch (e) {}
   const p = q || leggi("pagina", "rec"); if (/^(set|rev)$/.test(p)) vai(p); }

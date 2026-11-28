@@ -129,7 +129,9 @@ bool Registrazione::avvia(const Parametri& p, std::string& errore) {
         }
     }
     l.unlock();
-    if (!p_.atem.empty() && !registro_.avvia(p_.atem, p_.cartella + "\\atem.jsonl", errore)) {
+    // Con lo stato dal vivo per la pagina: tally e corsia del programma coi tagli dal REC (beta 12, sezione 9.93).
+    if (!p_.atem.empty() && !registro_.avvia(p_.atem, p_.cartella + "\\atem.jsonl", errore, file_atem_vivo(),
+                                             p_.cartella + "\\atem-tagli.json", p_.modo)) {
         std::printf("⚠ %s: recording without cuts\n", errore.c_str());
         errore.clear();
     }
